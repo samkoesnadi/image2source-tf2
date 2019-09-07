@@ -139,7 +139,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 ### Point wise feed forward network
 def point_wise_feed_forward_network(d_model, dff):
   return tf.keras.Sequential([
-      tf.keras.layers.Dense(dff, activation='relu'),  # (batch_size, seq_len, dff)
+      tf.keras.layers.Dense(dff, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER),  # (batch_size, seq_len, dff)
       tf.keras.layers.Dense(d_model)  # (batch_size, seq_len, d_model)
   ])
 
@@ -214,23 +214,32 @@ class Encoder(tf.keras.layers.Layer):
 		self.d_model = d_model
 		self.num_layers = num_layers
 
-		self.embedding = tf.keras.layers.Dense(d_model, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)  # TODO: this might be able to be improved
+		self.dense1 = tf.keras.layers.Dense(d_model + (1280-d_model) // 2, activation=ACTIVATION,
+		                                       kernel_initializer=KERNEL_INITIALIZER)
+		self.embedding = tf.keras.layers.Dense(d_model, activation=ACTIVATION,
+		                                       kernel_initializer=KERNEL_INITIALIZER)  # TODO: this might be able to be improved
 		self.pos_encoding = positional_encoding(input_vocab_size, self.d_model)
 
 		self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
 		                   for _ in range(num_layers)]
 
-		self.dropout = tf.keras.layers.Dropout(rate)
+		self.dropout1 = tf.keras.layers.Dropout(rate)
+		self.dropout2 = tf.keras.layers.Dropout(rate)
+		self.dropout3 = tf.keras.layers.Dropout(rate)
 
 	def call(self, x, training, mask):
 		seq_len = tf.shape(x)[1]
 
 		# adding embedding and position encoding.
+		x = self.dense1(x)
+		x = self.dropout1(x, training=training)
 		x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
-		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+		x = self.dropout2(x, training=training)
+
+		x *= tf.math.sqrt(self.d_model)
 		x += self.pos_encoding[:, :seq_len, :]
 
-		x = self.dropout(x, training=training)
+		x = self.dropout3(x, training=training)
 
 		for i in range(self.num_layers):
 			x = self.enc_layers[i](x, training, mask)
@@ -440,7 +449,7 @@ class Pipeline():
 			# as its input.
 			output = tf.concat([output, predicted_id], axis=-1)
 
-		return tf.squeeze(output, axis=0), attention_weights, encoder_input
+		return tf.squeeze(output, axis=0), attention_weights
 
 
 	def plot_attention_weights(self, attention, input, sxn_token, layer, filename, max_len=5):
@@ -500,7 +509,7 @@ class Pipeline():
 		:param plot:
 		:return:
 		"""
-		result, attention_weights, encoder_input = self.evaluate(img)
+		result, attention_weights = self.evaluate(img)
 
 		# [1:] key is to remove the <start> token
 		result = result.numpy()[1:]

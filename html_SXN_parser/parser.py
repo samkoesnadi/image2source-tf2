@@ -15,7 +15,8 @@ from bs4 import BeautifulSoup
 import re
 
 bootstrap_link = """
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous"><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 """
 img_default_path_token = "***"
 img_default_path = "../images/0.png"
@@ -95,10 +96,15 @@ def encode_2_sxn(html):
     # change to default value for img_path
     sxn_result = re.sub(r'(url\(\").*(\"\))', r"\1"+img_default_path_token+r"\2", sxn_result)
 
-    return sxn_result
+    return sxn_result[sxn_result.index("{")+1:sxn_result.rfind("}")]  # remove html bla bla bla{ } from the result
 
 def decode_2_html(sxn_result):
-    # TODO: decode, put bootstrap css in the HTML
+
+    # re-append html tag
+    sxn_result = "html{" + sxn_result + "}"
+    sxn_result = re.sub(r'\s+[{]\s+', "{", sxn_result)
+    sxn_result = re.sub(r'\s+[}]\s+', "}", sxn_result)
+
     def __decode_sxn(sxn_text):
         html_result = ""  # the html result
         ch_str = ""  # the text placeholder
@@ -110,10 +116,10 @@ def decode_2_html(sxn_result):
             ch = sxn_text[i_ch]
             if ch == '{':
                 if tag_name == "":
-                    tag_name = ch_str
-                    if tag_name != 't': html_result += '<'+tag_name+'>'
+                    tag_name = ch_str.strip()
+                    if tag_name.strip() != 't': html_result += '<'+tag_name+'>'
 
-                    if "head" in tag_name:  # put all the dependecies here
+                    if tag_name.strip()[:4] == "head":  # put all the dependecies here
                         html_result += bootstrap_link
 
                     child_i_ch, child_html_result = __decode_sxn(sxn_text[i_ch+1:])
@@ -123,7 +129,7 @@ def decode_2_html(sxn_result):
                 else:
                     child_i_ch, child_html_result = __decode_sxn(sxn_text[i_ch - len(ch_str):])
                     i_ch -= len(ch_str) + 1
-                html_result += child_html_result
+                html_result += child_html_result.strip()
                 i_ch += child_i_ch
 
                 # reset placeholder
@@ -143,7 +149,7 @@ def decode_2_html(sxn_result):
                 html_result += '</' + tag_name + '>'
             i_ch += 1  # this is to account for '{' that is skipped when it is decoded
         else:
-            html_result = ch_str
+            html_result = ch_str.strip()
 
         # if it is already touches the end then just return the ch_str
         return i_ch, html_result
@@ -153,13 +159,14 @@ def decode_2_html(sxn_result):
     # decode image path token with real image path
     html_result = html_result.replace("***", img_default_path)
 
-    return html_result
+    return BeautifulSoup(html_result, "lxml").prettify()
 
 if __name__ == "__main__":
     # open the html file
     # filename = "all_data/0CE73E18-575A-4A70-9E40-F000B250344F.html"
     filename = "example.html"
-    with open("datasets/"+filename, "r") as f:
+    filename_generated = "generated_example.html"
+    with open(filename, "r") as f:
         html = f.read()
 
     # print the length of the original HTML file
@@ -174,7 +181,6 @@ if __name__ == "__main__":
     print("html_result:", len(html_result), repr(html_result))
 
     # store the generated html to file
-    with open("generated/"+filename, "w") as f:
-        soup = BeautifulSoup(html_result, 'lxml')
-        f.write(soup.prettify())
+    with open(filename_generated, "w") as f:
+        f.write(html_result)
         print("\n*** Generated HTML is stored to", "generated/"+filename)

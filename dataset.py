@@ -79,7 +79,7 @@ def convert_and_write_all_datasets(annotations_path, filename):
 			sxns.append("<start> " + encode_2_sxn(f.read()) + " <end>")
 
 	# tokenize the sxns
-	tokenizer = tf.keras.preprocessing.text.Tokenizer(TOP_K, filters='', split=' ', oov_token="<unk>")
+	tokenizer = tf.keras.preprocessing.text.Tokenizer(TOP_K, filters='', split=' ')
 	tokenizer.fit_on_texts(sxns)
 	seqs = tokenizer.texts_to_sequences(sxns)
 

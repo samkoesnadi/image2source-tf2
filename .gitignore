@@ -1,0 +1,14 @@
+# all datasets, generated files
+checkpoints
+datasets
+generated
+layers_figure
+model_weights
+**/__pycache__
+
+# all .json, .png
+*.json
+*.png
+
+# project folder
+.idea

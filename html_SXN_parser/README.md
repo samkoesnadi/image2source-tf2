@@ -1,0 +1,1 @@
+SXN (Simplified XML Notation) is the minimalized XML that is suitable for RNN input. In our case, this is used for HTML purpose.

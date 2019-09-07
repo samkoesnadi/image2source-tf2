@@ -1,4 +1,7 @@
+# image2source
+
+Convert image to source code. In this project, it is specified to HTML+CSS.
 
 
-
-common_definitions : here you can change the logging level
+## Editable configuration (common_definitions.py)
++ IS_TRAINING : Boolean

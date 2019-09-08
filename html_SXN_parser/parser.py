@@ -83,7 +83,7 @@ def encode_2_sxn(html):
             else:
                 # else encode all children tags
                 if parent_elem.name == "style":
-                    sxn_text += re.sub(r'\s*}\s*', css_close, re.sub(r'\s*{\s*', css_open, removeComments(parent_elem.string.strip())))
+                    sxn_text += re.sub(r';', " ; ", re.sub(r'}', css_close, re.sub(r'{', css_open, removeComments(parent_elem.string.strip()))))
                 else:
                     for elem in parent_elem.children:
                         if type(elem) != bs4.element.Comment and elem.name != "script":  # do not put comment in SXN and do not put <script> in SXN
@@ -169,7 +169,7 @@ def decode_2_html(sxn_result):
 if __name__ == "__main__":
     # open the html file
     # filename = "all_data/0CE73E18-575A-4A70-9E40-F000B250344F.html"
-    filename = "example.html"
+    filename = "../../datasets/example.html"
     filename_generated = "generated_example.html"
     with open(filename, "r") as f:
         html = f.read()
@@ -188,4 +188,4 @@ if __name__ == "__main__":
     # store the generated html to file
     with open(filename_generated, "w") as f:
         f.write(html_result)
-        print("\n*** Generated HTML is stored to", "generated/"+filename)
+        print("\n*** Generated HTML is stored to", filename_generated)

@@ -146,7 +146,7 @@ class EncoderLayer(tf.keras.layers.Layer):
 		self.mha = MultiHeadAttention(d_model, num_heads)
 
 		# Point wise feed forward network
-		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
+		self.ffn1 = tf.keras.layers.Dense(dff, activation="relu", kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
 		self.ffn2 = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
 
 		self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -177,7 +177,7 @@ class DecoderLayer(tf.keras.layers.Layer):
 		self.mha2 = MultiHeadAttention(d_model, num_heads)
 
 		# Point wise feed forward network
-		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION,
+		self.ffn1 = tf.keras.layers.Dense(dff, activation="relu",
 		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
 		self.ffn2 = tf.keras.layers.Dense(d_model,
 		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
@@ -223,9 +223,9 @@ class Encoder(tf.keras.layers.Layer):
 		self.reshape = tf.keras.layers.Reshape((49, 1280))
 		self.dense = tf.keras.layers.Dense(d_model + (1280-d_model) // 2, activation=ACTIVATION,
 		                                       kernel_initializer=KERNEL_INITIALIZER)
-		self.batchnorm1 = tf.keras.layers.BatchNormalization()
-		self.embedding = tf.keras.layers.Dense(d_model, activation="tanh",
+		self.embedding = tf.keras.layers.Dense(d_model, activation=ACTIVATION,
 		                                       kernel_initializer=KERNEL_INITIALIZER)  # TODO: the activation might need to be changed
+		self.batchnorm_embedding = tf.keras.layers.BatchNormalization()
 		self.pos_encoding = positional_encoding(input_vocab_size, self.d_model)
 
 		self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
@@ -239,12 +239,12 @@ class Encoder(tf.keras.layers.Layer):
 		# encode embedding and position
 		x = self.reshape(x)
 		x = self.dense(x)
-		x = self.batchnorm1(x)  # this batch normalization is optional
 		x = self.dropout1(x, training=training)
 
 		seq_len = tf.shape(x)[1]  # define seq len from the shape of first dimension of x
 
 		x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
+		x = self.batchnorm_embedding(x)
 		x = self.dropout2(x, training=training)
 
 		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
@@ -349,12 +349,12 @@ class Pipeline():
 		additional_info = load_additional_info(additional_filename)
 		self.max_position = additional_info["max_pos"]
 
-		target_vocab_size = len(self.tokenizer.index_word)  # the total length of index
+		self.target_vocab_size = len(self.tokenizer.index_word)  # the total length of index
 		input_vocab_size = 1280  # the input vocab size is the last dimension from MobileNet V2
 
 		# instance of Transformer
 		self.transformer = Transformer(num_layers, d_model, num_heads, dff,
-		                          input_vocab_size, target_vocab_size, DROPOUT_RATE, self.max_position)
+		                          input_vocab_size, self.target_vocab_size, DROPOUT_RATE, self.max_position)
 
 		# model
 		self.preprocessing_model = tf.keras.Model(self.transformer.preprocessing_base_input, self.transformer.preprocessing)
@@ -363,7 +363,10 @@ class Pipeline():
 		learning_rate = CustomSchedule(d_model)
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
 		                                     epsilon=1e-9)
-		self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+		                                     # epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
+		# self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
+		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True,
+		                                                            reduction='none')
 
 		# define train loss and accuracy
 		self.train_loss = tf.keras.metrics.Mean(name='train_loss')
@@ -385,7 +388,13 @@ class Pipeline():
 
 	def loss(self, real, pred):
 		mask = tf.math.logical_not(tf.math.equal(real, 0))
-		loss_ = self.loss_object(real, pred)
+
+		# # convert real to one-hot encoding... this is to apply label smoothing
+		# real_one_hot = tf.one_hot(real, self.target_vocab_size)
+		#
+		# loss_ = self.loss_object(real_one_hot, pred)  # loss
+
+		loss_ = self.loss_object_sparse(real, pred)
 
 		mask = tf.cast(mask, dtype=loss_.dtype)
 		loss_ *= mask
@@ -418,9 +427,10 @@ class Pipeline():
 		self.train_accuracy(tar_real, predictions)
 
 
-	def evaluate(self, img):
+	def evaluate(self, img, plot_layer=False):
 		"""
 
+		:param plot_layer: Boolean to plot the intermediate layers
 		:param img: (height, width, 3)
 		:return:
 		"""
@@ -430,6 +440,12 @@ class Pipeline():
 		# preprocessing
 		img_expand_dims = tf.expand_dims(img, 0)
 		encoder_input = self.preprocessing_model(img_expand_dims)  # preprocessing_model needs to come in batch
+
+		if plot_layer:
+			# generate plot of encoder_input
+			# store the figures
+			for i, layer in enumerate([encoder_input]):
+				save_fig_png(layer, "transformer/prediction_encoder_input_feature_layer_"+str(i))
 
 		# as the target is english, the first word to the transformer should be the
 		# english start token.
@@ -449,7 +465,7 @@ class Pipeline():
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
 
-			predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
+			predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)  # greedily take maximum prediction
 
 			# return the result if the predicted_id is equal to the end token
 			if tf.squeeze(predicted_id) == end_token:
@@ -540,7 +556,7 @@ class Pipeline():
 		target = test_data[1].numpy()
 		position = test_data[2].numpy()
 
-		result, attention_weights = self.evaluate(img)
+		result, attention_weights = self.evaluate(img, True)
 
 		result = result.numpy()  # convert to numpy
 

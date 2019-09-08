@@ -171,11 +171,11 @@ def get_all_datasets(filename):
 		# Parse the input tf.Example proto using the dictionary above.
 		return tf.io.parse_single_example(example_proto, feature_description)
 
-	def convert_image_id(dataset):
+	def convert_data(dataset):
 		return load_image(dataset["image_id"]+".png"), tf.cast(dataset["sxn_token"], tf.int32), tf.cast(dataset["pos"], tf.int32)
 
 	_datasets = raw_dataset.map(_parse_function, num_parallel_calls=tf.data.experimental.AUTOTUNE)  # map the string to real data
-	_datasets = _datasets.map(convert_image_id, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+	_datasets = _datasets.map(convert_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
 	# split datasets to train_datasets, and test_dataset... right now just set 2 test_dataset
 	_test_dataset = _datasets.take(2)  # (2, ...)

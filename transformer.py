@@ -223,13 +223,12 @@ class Encoder(tf.keras.layers.Layer):
 		self.d_model = d_model
 		self.num_layers = num_layers
 
-		intermediate_channel_size = d_model + (1280-d_model) // 2  # for intermediate before embedding
-
-		self.conv2d1 = tf.keras.layers.Conv2D(intermediate_channel_size, kernel_size=3, padding="same", activation=ACTIVATION,
+		self.reshape = tf.keras.layers.Reshape((49, 1280))
+		self.dense = tf.keras.layers.Dense(d_model + (1280-d_model) // 2, activation=ACTIVATION,
 		                                       kernel_initializer=KERNEL_INITIALIZER)
-		self.reshape = tf.keras.layers.Reshape((49, intermediate_channel_size))
-		self.embedding = tf.keras.layers.Dense(d_model, activation=ACTIVATION,
-		                                       kernel_initializer=KERNEL_INITIALIZER)
+		self.batchnorm1 = tf.keras.layers.BatchNormalization()
+		self.embedding = tf.keras.layers.Dense(d_model, activation="tanh",
+		                                       kernel_initializer=KERNEL_INITIALIZER)  # TODO: the activation might need to be changed
 		self.pos_encoding = positional_encoding(input_vocab_size, self.d_model)
 
 		self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
@@ -241,8 +240,9 @@ class Encoder(tf.keras.layers.Layer):
 
 	def call(self, x, training, mask):
 		# encode embedding and position
-		x = self.conv2d1(x)
 		x = self.reshape(x)
+		x = self.dense(x)
+		x = self.batchnorm1(x)  # this batch normalization is optional
 		x = self.dropout1(x, training=training)
 
 		seq_len = tf.shape(x)[1]  # define seq len from the shape of first dimension of x
@@ -584,9 +584,9 @@ if __name__ == "__main__":
 		if master.ckpt_manager.latest_checkpoint:
 			start_epoch = additional_info["transformer_epoch"]
 		else:
-			# load MobileNetV2 weight if epoch is equal to 0
-			print('Loading MobileNetV2 weights for epoch {}'.format(start_epoch + 1))
 			if TRANSFER_LEARN_AUTOENCODER:
+				# load MobileNetV2 weight if epoch is equal to 0
+				print('Loading MobileNetV2 weights for epoch {}'.format(start_epoch + 1))
 				master.transformer.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
 
 		for epoch in range(start_epoch, EPOCHS):
@@ -617,7 +617,7 @@ if __name__ == "__main__":
 
 			print()
 
-		print('Saving MobileNetV2 weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
+		print('Saving Transformer weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
 		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
 		master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
 

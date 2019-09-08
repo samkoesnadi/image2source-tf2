@@ -6,6 +6,7 @@ generated
 layers_figure
 model_weights
 **/__pycache__
+logs
 
 # all .json, .png, .html
 *.json

@@ -9,6 +9,7 @@ Author: Samuel Koesnadi 2019
 Attention weights naming:
 decoder_layer4_block2 means 4th layer (from maximum num_layers) and second block (from the two blocks that decoder has)
 """
+from datetime import datetime
 
 from common_definitions import *
 from utils import *
@@ -573,6 +574,11 @@ if __name__ == "__main__":
 	additional_info = load_additional_info(ADDITIONAL_FILENAME)
 	key_epoch = "transformer_epoch_"+os.path.basename(TRANSFORMER_CHECKPOINT_PATH)  # the key name in additional info for prev epoch
 
+	# tensorboard support
+	current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+	train_log_dir = 'logs/transformer/' + current_time + '/train'
+	train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+
 	master = Pipeline(TOKENIZER_FILENAME, ADDITIONAL_FILENAME, TRANSFORMER_CHECKPOINT_PATH)  # master pipeline
 
 	if IS_TRAINING:
@@ -612,6 +618,11 @@ if __name__ == "__main__":
 			# store last epoch
 			additional_info[key_epoch] = epoch
 			store_additional_info(additional_info, ADDITIONAL_FILENAME)
+
+			# store loss and acc to tensorboard
+			with train_summary_writer.as_default():
+				tf.summary.scalar('loss', master.train_loss.result(), step=epoch)
+				tf.summary.scalar('accuracy', master.train_accuracy.result(), step=epoch)
 
 			should_break = master.smart_ckpt_saver(epoch + 1,
 			                                            master.train_accuracy.result())  # this will be better if we use validation

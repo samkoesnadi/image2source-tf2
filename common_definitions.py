@@ -37,6 +37,7 @@ DEFAULT_LEARNING_RATE = 1e-3
 # LEARNING_RATE_DECAY = (DEFAULT_LEARNING_RATE - 4e-4) / EPOCHS / 100
 
 IS_TRAINING = True
+TRANSFER_LEARN_AUTOENCODER = False
 
 TFRECORD_FILENAME = "datasets/pix2code.tfrecord"
 TOKENIZER_FILENAME = "datasets/pix2code_tokenizer.json"
@@ -47,7 +48,7 @@ MOBILENETV2_WEIGHT_PATH = "model_weights/pix2code_MobileNetV2.h5"  # autoencoder
 TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer.h5"  # transformer trained on pix2code datasets
 
 AUTOENCODER_CHECKPOINT_PATH = "./checkpoints/train/autoencoder"
-TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_pre_conv2d"
+TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_pre_bottleneck"
 # DATASET_CACHE = "/tmp/img2source_dataset_cache"
 
 ### Set Hyperparameters for Transformer

@@ -141,20 +141,16 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 		return output, attention_weights
 
-### Point wise feed forward network
-def point_wise_feed_forward_network(d_model, dff):
-  return tf.keras.Sequential([
-      tf.keras.layers.Dense(dff, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER),  # (batch_size, seq_len, dff)
-      tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
-  ])
-
 
 class EncoderLayer(tf.keras.layers.Layer):
 	def __init__(self, d_model, num_heads, dff, rate=0.1):
 		super(EncoderLayer, self).__init__()
 
 		self.mha = MultiHeadAttention(d_model, num_heads)
-		self.ffn = point_wise_feed_forward_network(d_model, dff)
+
+		# Point wise feed forward network
+		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
+		self.ffn2 = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
 
 		self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 		self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -167,7 +163,9 @@ class EncoderLayer(tf.keras.layers.Layer):
 		attn_output = self.dropout1(attn_output, training=training)
 		out1 = self.layernorm1(x + attn_output)  # (batch_size, input_seq_len, d_model)
 
-		ffn_output = self.ffn(out1)  # (batch_size, input_seq_len, d_model)
+		ffn_output = self.ffn1(out1)
+		ffn_output = self.ffn2(ffn_output)  # (batch_size, input_seq_len, d_model)
+
 		ffn_output = self.dropout2(ffn_output, training=training)
 		out2 = self.layernorm2(out1 + ffn_output)  # (batch_size, input_seq_len, d_model)
 
@@ -181,7 +179,11 @@ class DecoderLayer(tf.keras.layers.Layer):
 		self.mha1 = MultiHeadAttention(d_model, num_heads)
 		self.mha2 = MultiHeadAttention(d_model, num_heads)
 
-		self.ffn = point_wise_feed_forward_network(d_model, dff)
+		# Point wise feed forward network
+		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION,
+		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
+		self.ffn2 = tf.keras.layers.Dense(d_model,
+		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
 
 		self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 		self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -204,7 +206,9 @@ class DecoderLayer(tf.keras.layers.Layer):
 		attn2 = self.dropout2(attn2, training=training)
 		out2 = self.layernorm2(attn2 + out1)  # (batch_size, target_seq_len, d_model)
 
-		ffn_output = self.ffn(out2)  # (batch_size, target_seq_len, d_model)
+		ffn_output = self.ffn1(out2)
+		ffn_output = self.ffn2(ffn_output)  # (batch_size, target_seq_len, d_model)
+
 		ffn_output = self.dropout3(ffn_output, training=training)
 		out3 = self.layernorm3(ffn_output + out2)  # (batch_size, target_seq_len, d_model)
 
@@ -582,7 +586,8 @@ if __name__ == "__main__":
 		else:
 			# load MobileNetV2 weight if epoch is equal to 0
 			print('Loading MobileNetV2 weights for epoch {}'.format(start_epoch + 1))
-			master.transformer.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
+			if TRANSFER_LEARN_AUTOENCODER:
+				master.transformer.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
 
 		for epoch in range(start_epoch, EPOCHS):
 			start = time.time()
@@ -614,7 +619,7 @@ if __name__ == "__main__":
 
 		print('Saving MobileNetV2 weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
 		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
-		master.encoder.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
+		master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
 
 		# store last epoch
 		print("Storing last epoch")
@@ -627,7 +632,9 @@ if __name__ == "__main__":
 	# translate image to html
 	for i, test_data in enumerate(test_dataset):
 		print("Translating test index-" + str(i))
+		start_time = time.time()
 		html = master.translate(test_data, "decoder_layer4_block2")
+		print("Translated in {} s".format(time.time()-start_time))
 
 		# store image for reference
 		plt.imshow(test_data[0])

@@ -9,7 +9,9 @@ Author: Samuel Koesnadi 2019
 Attention weights naming:
 decoder_layer4_block2 means 4th layer (from maximum num_layers) and second block (from the two blocks that decoder has)
 
-TODO: validation, accuracy pipeline
+TODO: right now there is no means of keeping multiple variation of model in the same project directory because there can only be one training result.
+This is necessary in the future. Modify how to save max_epoch, result with version, etc.
+
 """
 
 from common_definitions import *

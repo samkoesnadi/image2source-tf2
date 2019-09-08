@@ -170,6 +170,9 @@ if __name__ == "__main__":
 			print('Epoch {} Loss {:.4f}'.format(epoch + 1, autoencoder.train_loss.result()))
 			print('Time taken for 1 epoch: {} secs'.format(time.time() - start))
 
+			additional_info["autoencoder_epoch"] = epoch
+			store_additional_info(additional_info, ADDITIONAL_FILENAME)
+
 			should_break = autoencoder.smart_ckpt_saver(epoch+1, -autoencoder.train_loss.result())  # minus it because we do not have real accuracy, so just make a virtual one by minusing it
 			if should_break == -1:
 				break
@@ -181,11 +184,6 @@ if __name__ == "__main__":
 		print('Saving MobileNetV2 weights for epoch {}'.format(autoencoder.smart_ckpt_saver.max_acc_epoch))
 		autoencoder.ckpt.restore(autoencoder.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
 		autoencoder.encoder.save_weights(MOBILENETV2_WEIGHT_PATH)  # save the preprocessing weights
-
-		# store last epoch
-		print("Storing last epoch")
-		additional_info["autoencoder_epoch"] = max(start_epoch, EPOCHS)
-		store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
 	print ("Start evaluation...")
 	eval_dataset = next(iter(train_dataset))  # TODO: this definitely needs to be changed with more proper pipeline

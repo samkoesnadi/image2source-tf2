@@ -8,10 +8,6 @@ Author: Samuel Koesnadi 2019
 
 Attention weights naming:
 decoder_layer4_block2 means 4th layer (from maximum num_layers) and second block (from the two blocks that decoder has)
-
-TODO: right now there is no means of keeping multiple variation of model in the same project directory because there can only be one training result.
-This is necessary in the future. Modify how to save max_epoch, result with version, etc.
-
 """
 
 from common_definitions import *
@@ -575,6 +571,7 @@ if __name__ == "__main__":
 	# initialize train dataset
 	train_datasets, test_dataset = get_all_datasets(TFRECORD_FILENAME)
 	additional_info = load_additional_info(ADDITIONAL_FILENAME)
+	key_epoch = "transformer_epoch_"+os.path.basename(TRANSFORMER_CHECKPOINT_PATH)  # the key name in additional info for prev epoch
 
 	master = Pipeline(TOKENIZER_FILENAME, ADDITIONAL_FILENAME, TRANSFORMER_CHECKPOINT_PATH)  # master pipeline
 
@@ -582,7 +579,10 @@ if __name__ == "__main__":
 		### Train loop
 		start_epoch = 0
 		if master.ckpt_manager.latest_checkpoint:
-			start_epoch = additional_info["transformer_epoch"]
+			if key_epoch in additional_info:
+				start_epoch = additional_info[key_epoch]
+			else:
+				start_epoch = additional_info["transformer_epoch"]
 		else:
 			if TRANSFER_LEARN_AUTOENCODER:
 				# load MobileNetV2 weight if epoch is equal to 0
@@ -608,6 +608,10 @@ if __name__ == "__main__":
 			                                                    master.train_accuracy.result()))
 
 			print('Time taken for 1 epoch: {} secs'.format(time.time() - start))
+
+			# store last epoch
+			additional_info[key_epoch] = epoch
+			store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
 			should_break = master.smart_ckpt_saver(epoch + 1,
 			                                            master.train_accuracy.result())  # this will be better if we use validation
@@ -637,11 +641,6 @@ if __name__ == "__main__":
 		print('Saving Transformer weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
 		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
 		master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
-
-		# store last epoch
-		print("Storing last epoch")
-		additional_info["transformer_epoch"] = max(start_epoch, EPOCHS)
-		store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
 	# evaluate
 	print ("Start evaluation...")

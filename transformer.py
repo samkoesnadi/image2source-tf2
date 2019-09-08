@@ -615,6 +615,23 @@ if __name__ == "__main__":
 				start_epoch = epoch
 				break
 
+			if (epoch+1) % 50 == 0:
+				# translate image to html for evaluation
+				for i, test_data in enumerate(test_dataset):
+					print("Translating test index-" + str(i))
+					start_time = time.time()
+					html = master.translate(test_data, "decoder_layer4_block2")
+					print("Translated in {} s".format(time.time() - start_time))
+
+					# store image for reference
+					plt.imshow(test_data[0])
+					plt.savefig('generated/transformer_input_img_{}.png'.format(i), bbox_inches='tight')
+					plt.close()
+
+					# write the html to file
+					with open("generated/generated_" + str(i) + ".html", "w") as f:
+						f.write(html)
+
 			print()
 
 		print('Saving Transformer weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))

@@ -621,7 +621,7 @@ if __name__ == "__main__":
 
 			# store loss and acc to tensorboard
 			with train_summary_writer.as_default():
-				tf.summary.scalar('loss', master.train_loss.result(), step=epoch)
+				tf.summary.scalar('loss', master.train_loss.result(), step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 				tf.summary.scalar('accuracy', master.train_accuracy.result(), step=epoch)
 
 			should_break = master.smart_ckpt_saver(epoch + 1,

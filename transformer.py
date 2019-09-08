@@ -8,12 +8,15 @@ Author: Samuel Koesnadi 2019
 
 Attention weights naming:
 decoder_layer4_block2 means 4th layer (from maximum num_layers) and second block (from the two blocks that decoder has)
+
+TODO: validation, accuracy pipeline
 """
 
 from common_definitions import *
 from utils import *
 from dataset import *
 from html_SXN_parser.parser import decode_2_html
+from sklearn.metrics import accuracy_score
 
 ### POSITIONAL ENCODING
 def get_angles(pos, i, d_model):
@@ -97,11 +100,11 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 		self.depth = d_model // self.num_heads
 
-		self.wq = tf.keras.layers.Dense(d_model)
-		self.wk = tf.keras.layers.Dense(d_model)
-		self.wv = tf.keras.layers.Dense(d_model)
+		self.wq = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)
+		self.wk = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)
+		self.wv = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)
 
-		self.dense = tf.keras.layers.Dense(d_model)
+		self.dense = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)  # check if activation is needed here
 
 	def split_heads(self, x, batch_size):
 		"""Split the last dimension into (num_heads, depth).
@@ -140,7 +143,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 def point_wise_feed_forward_network(d_model, dff):
   return tf.keras.Sequential([
       tf.keras.layers.Dense(dff, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER),  # (batch_size, seq_len, dff)
-      tf.keras.layers.Dense(d_model)  # (batch_size, seq_len, d_model)
+      tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
   ])
 
 
@@ -214,10 +217,13 @@ class Encoder(tf.keras.layers.Layer):
 		self.d_model = d_model
 		self.num_layers = num_layers
 
-		self.dense1 = tf.keras.layers.Dense(d_model + (1280-d_model) // 2, activation=ACTIVATION,
+		intermediate_channel_size = d_model + (1280-d_model) // 2  # for intermediate before embedding
+
+		self.conv2d1 = tf.keras.layers.Conv2D(intermediate_channel_size, kernel_size=3, padding="same", activation=ACTIVATION,
 		                                       kernel_initializer=KERNEL_INITIALIZER)
+		self.reshape = tf.keras.layers.Reshape((49, intermediate_channel_size))
 		self.embedding = tf.keras.layers.Dense(d_model, activation=ACTIVATION,
-		                                       kernel_initializer=KERNEL_INITIALIZER)  # TODO: this might be able to be improved
+		                                       kernel_initializer=KERNEL_INITIALIZER)
 		self.pos_encoding = positional_encoding(input_vocab_size, self.d_model)
 
 		self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
@@ -228,15 +234,17 @@ class Encoder(tf.keras.layers.Layer):
 		self.dropout3 = tf.keras.layers.Dropout(rate)
 
 	def call(self, x, training, mask):
-		seq_len = tf.shape(x)[1]
-
-		# adding embedding and position encoding.
-		x = self.dense1(x)
+		# encode embedding and position
+		x = self.conv2d1(x)
+		x = self.reshape(x)
 		x = self.dropout1(x, training=training)
+
+		seq_len = tf.shape(x)[1]  # define seq len from the shape of first dimension of x
+
 		x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
 		x = self.dropout2(x, training=training)
 
-		x *= tf.math.sqrt(self.d_model)
+		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
 		x += self.pos_encoding[:, :seq_len, :]
 
 		x = self.dropout3(x, training=training)
@@ -301,9 +309,7 @@ class Transformer(tf.keras.Model):
 
 		# network
 		self.preprocessing_base_first_hidden_layer = self.preprocessing_base.layers[0].output
-		self.preprocessing_base_final_hidden_layer = self.preprocessing_base.layers[-1].output
-		self.reshape = tf.keras.layers.Reshape((49, 1280), input_shape=(7, 7, 1280))
-		self.preprocessing = self.reshape(self.preprocessing_base_final_hidden_layer)
+		self.preprocessing = self.preprocessing_base.layers[-1].output
 
 		self.encoder = Encoder(num_layers, d_model, num_heads, dff,
 		                       input_vocab_size, rate)
@@ -311,19 +317,18 @@ class Transformer(tf.keras.Model):
 		self.decoder = Decoder(num_layers, d_model, num_heads, dff,
 		                       target_vocab_size, rate, max_position)
 
-		self.final_layer = tf.keras.layers.Dense(target_vocab_size)
+		self.final_layer = tf.keras.layers.Dense(target_vocab_size, kernel_initializer=KERNEL_INITIALIZER, activation="linear")
 
 	def call(self, inp, tar, training, look_ahead_mask, decode_pos):
 		if training:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
-			preprocessing_output = self.preprocessing_base(inp)
-			inp = self.reshape(preprocessing_output)
+			inp = self.preprocessing_base(inp)
 
 		enc_output = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
 
 		# dec_output.shape == (batch_size, tar_seq_len, d_model)
 		dec_output, attention_weights = self.decoder(
 			tar, enc_output, training, look_ahead_mask, None, decode_pos)
-
+		
 		final_output = self.final_layer(dec_output)  # (batch_size, tar_seq_len, target_vocab_size)
 
 		return final_output, attention_weights
@@ -367,6 +372,8 @@ class Pipeline():
 
 		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=5)
 
+		self.smart_ckpt_saver = SmartCheckpointSaver(self.ckpt_manager)
+
 		# if a checkpoint exists, restore the latest checkpoint.
 		if self.ckpt_manager.latest_checkpoint:
 			self.ckpt.restore(self.ckpt_manager.latest_checkpoint)
@@ -380,11 +387,11 @@ class Pipeline():
 		mask = tf.cast(mask, dtype=loss_.dtype)
 		loss_ *= mask
 
-		return tf.reduce_mean(loss_)
+		return tf.reduce_sum(loss_)  # sum will make the difference higher thus it will learn the difference better with the cost of longer training time
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument
-	# tensors. To avoid re-tracing due to the variable sequence lengths or variable
+	# tensors. TODO if possible: To avoid re-tracing due to the variable sequence lengths or variable
 	# batch sizes (the last batch is smaller), use input_signature to specify
 	# more generic shapes.
 	@tf.function
@@ -452,7 +459,7 @@ class Pipeline():
 		return tf.squeeze(output, axis=0), attention_weights
 
 
-	def plot_attention_weights(self, attention, input, sxn_token, layer, filename, max_len=5):
+	def plot_attention_weights(self, attention, input, sxn_token, layer, filename, max_len=10):
 		"""
 
 		:param max_len: maximum length for sequence of input and sxn_result. Keep this to small value
@@ -502,51 +509,76 @@ class Pipeline():
 		plt.close()
 
 
-	def translate(self, img, plot=''):
+	def calculate_accuracy(self, target, result, position):
 		"""
 
-		:param img: (height, width, 3)
+		:param target:
+		:param result:
+		:param position:
+		:return: >=0 then accuracy score, -1 result size is smaler than target
+		"""
+		len_target = target.size
+
+		if len_target+position <= result.size:
+			return accuracy_score(target, result[position:len_target+position])
+		else:
+			return -1
+
+
+	def translate(self, test_data, plot=''):
+		"""
+
+		:param test_data:
 		:param plot:
 		:return:
 		"""
+
+		img = test_data[0]  # (height, width, 3)
+		target = test_data[1].numpy()
+		position = test_data[2].numpy()
+
 		result, attention_weights = self.evaluate(img)
 
+		result = result.numpy()  # convert to numpy
+
+		accuracy = self.calculate_accuracy(target, result, position)  # print accuracy score
+
 		# [1:] key is to remove the <start> token
-		result = result.numpy()[1:]
+		result = result[1:]
 
 		predicted_sxn = self.tokenizer.sequences_to_texts([result])[0]  # translate to predicted_sxn
 		predicted_html = decode_2_html(predicted_sxn)  # translate to predicted html
 
-		# print img evaluation
-		plt.imshow(img)
-		plt.savefig('evaluate_transformer_input_img.png', bbox_inches='tight')
-		plt.close()
+		if accuracy >= 0:
+			print("Accuracy score: {}".format(accuracy))  # print accuracy score of both the sequence
 
-		print('Predicted html: {}'.format(predicted_html))
+			if plot:
+				self.plot_attention_weights(attention_weights, [i for i in range(49)], result, plot,
+				                            "layers_figure/transformer/last_attention_weights.png")
+				print("Plot attention weight is generated.")
+		else:
+			print("Result size is smaler than target")
 
-		if plot:
-			self.plot_attention_weights(attention_weights, [i for i in range(49)], result, plot, "layers_figure/transformer/last_attention_weights.png")
-			print("Plot attention weight is generated.")
+		print('\nPredicted html: {}'.format(predicted_html))
 
 		return predicted_html
 
+
 ### Main training loop
 if __name__ == "__main__":
-	checkpoint_path = "./checkpoints/train/transformer"
-
 	# initialize train dataset
-	train_dataset = get_all_datasets(TFRECORD_FILENAME)  # TODO: seperate training and evaluation
+	train_datasets, test_dataset = get_all_datasets(TFRECORD_FILENAME)
+	additional_info = load_additional_info(ADDITIONAL_FILENAME)
 
-	master = Pipeline(TOKENIZER_FILENAME, ADDITIONAL_FILENAME, checkpoint_path)  # master pipeline
+	master = Pipeline(TOKENIZER_FILENAME, ADDITIONAL_FILENAME, TRANSFORMER_CHECKPOINT_PATH)  # master pipeline
 
 	if IS_TRAINING:
 		### Train loop
 		start_epoch = 0
 		if master.ckpt_manager.latest_checkpoint:
-			start_epoch = int(master.ckpt_manager.latest_checkpoint.split('-')[-1]) * 5
-
-		# load MobileNetV2 weight if epoch is equal to 0
-		if start_epoch == 0:
+			start_epoch = additional_info["transformer_epoch"]
+		else:
+			# load MobileNetV2 weight if epoch is equal to 0
 			print('Loading MobileNetV2 weights for epoch {}'.format(start_epoch + 1))
 			master.transformer.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
 
@@ -557,31 +589,49 @@ if __name__ == "__main__":
 			master.train_accuracy.reset_states()
 
 			# inp -> image, tar -> html
-			for (batch, (img, sxn_token, decode_pos)) in enumerate(train_dataset):
+			for (batch, (img, sxn_token, decode_pos)) in enumerate(train_datasets):
 				master.train_step(img, sxn_token, decode_pos)
 
 				if batch % 100 == 0:
 					print('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
 						epoch + 1, batch, master.train_loss.result(), master.train_accuracy.result()))
 
-			if (epoch + 1) % 5 == 0:
-				ckpt_save_path = master.ckpt_manager.save()
-				print('Saving checkpoint for epoch {} at {}'.format(epoch + 1,
-				                                                    ckpt_save_path))
-
 			print('Epoch {} Loss {:.4f} Accuracy {:.4f}'.format(epoch + 1,
 			                                                    master.train_loss.result(),
 			                                                    master.train_accuracy.result()))
 
-			print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
+			print('Time taken for 1 epoch: {} secs'.format(time.time() - start))
+
+			should_break = master.smart_ckpt_saver(epoch + 1,
+			                                            master.train_accuracy.result())  # this will be better if we use validation
+			if should_break == -1:
+				start_epoch = epoch
+				break
+
+			print()
+
+		print('Saving MobileNetV2 weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
+		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
+		master.encoder.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
+
+		# store last epoch
+		print("Storing last epoch")
+		additional_info["transformer_epoch"] = max(start_epoch, EPOCHS)
+		store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
 	# evaluate
 	print ("Start evaluation...")
-	eval_dataset = next(iter(train_dataset))  # TODO: this definitely needs to be changed with more proper pipeline
 
 	# translate image to html
-	html = master.translate(eval_dataset[0][0], "decoder_layer4_block2")
+	for i, test_data in enumerate(test_dataset):
+		print("Translating test index-" + str(i))
+		html = master.translate(test_data, "decoder_layer4_block2")
 
-	# write the html to file
-	with open("generated/generated.html", "w") as f:
-		f.write(html)
+		# store image for reference
+		plt.imshow(test_data[0])
+		plt.savefig('generated/transformer_input_img_{}.png'.format(i), bbox_inches='tight')
+		plt.close()
+
+		# write the html to file
+		with open("generated/generated_"+str(i)+".html", "w") as f:
+			f.write(html)

@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import tensorflow as tf
+from common_definitions import EPOCHS
 
 def save_fig_png(input_arr, filename):
 	"""
@@ -27,7 +28,7 @@ def save_fig_png(input_arr, filename):
 		ax.imshow(inp)
 
 	plt.savefig("layers_figure/"+filename+".png", bbox_inches="tight")
-	plt.clf()
+	plt.close()
 
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
@@ -71,6 +72,35 @@ def weighted_loss(target, pred, loss_function, light_background=True):
 	else:
 		ratio = (avg_pred - min_val) / (max_val - min_val) + 1
 
-	_loss = tf.math.reduce_sum(ratio * _loss) / tf.math.reduce_sum(ratio)
+	# _loss = tf.math.reduce_sum(ratio * _loss) / tf.math.reduce_sum(ratio)
+	_loss = tf.math.reduce_sum(ratio * _loss)
 
 	return _loss
+
+
+class SmartCheckpointSaver:
+	def __init__(self, ckpt_manager):
+		self.ckpt_manager = ckpt_manager
+		self.max_val_acc = -np.inf  # max validation accuracy
+		self.max_acc_epoch = 0  # the epoch in which we have the maximum accuracy
+
+	def __call__(self, curr_epoch, curr_val_acc):
+		"""
+
+		:param curr_epoch:
+		:param curr_val_acc:
+		:return: 1 ckpt saved, 0 nothing is done, -1 no new max_val_acc is created in the given rule
+		"""
+		if curr_val_acc > self.max_val_acc:
+			ckpt_save_path = self.ckpt_manager.save()
+			print('Saving checkpoint for epoch {} at {}'.format(curr_epoch,
+			                                                    ckpt_save_path))
+			self.max_val_acc = curr_val_acc
+			self.max_acc_epoch = curr_epoch
+			return 1
+		else:
+			epoch_max = max(EPOCHS, int(self.max_acc_epoch * 1.5))
+
+			if epoch_max <= curr_epoch:
+				return -1
+		return 0

@@ -37,7 +37,7 @@ def load_image(image_path):
 
 def get_images_dataset(annotations_path):
 	"""
-	Get only images as datasets
+	Get only images as datasets. This function is designed for autoencoder in image_feature_extract.py
 
 	:param annotations_path:
 	:return: tf.data.Dataset
@@ -51,9 +51,7 @@ def get_images_dataset(annotations_path):
 	# Feel free to change batch_size according to your system configuration
 	image_dataset = tf.data.Dataset.from_tensor_slices(image_ids)
 	image_dataset = image_dataset.map(load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-	# cache the dataset to memory to get a speedup while reading from it.
-	image_dataset = image_dataset.cache(DATASET_CACHE)
-	image_dataset = image_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+	image_dataset = image_dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE_AUTOENCODER)
 	image_dataset = image_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
 	return image_dataset
@@ -76,10 +74,11 @@ def convert_and_write_all_datasets(annotations_path, filename):
 	sxns = []
 	for html_id in html_ids:
 		with open(html_id, 'r') as f:
-			sxns.append("<start> " + encode_2_sxn(f.read()) + " <end>")
+			sxn = encode_2_sxn(f.read())
+			sxns.append("<start> " + sxn + " <end>")
 
 	# tokenize the sxns
-	tokenizer = tf.keras.preprocessing.text.Tokenizer(TOP_K, filters='', split=' ')
+	tokenizer = tf.keras.preprocessing.text.Tokenizer(TOP_K, filters='', split=' ', oov_token="oov")
 	tokenizer.fit_on_texts(sxns)
 	seqs = tokenizer.texts_to_sequences(sxns)
 
@@ -177,14 +176,17 @@ def get_all_datasets(filename):
 
 	_datasets = raw_dataset.map(_parse_function, num_parallel_calls=tf.data.experimental.AUTOTUNE)  # map the string to real data
 	_datasets = _datasets.map(convert_image_id, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-	# cache the dataset to memory to get a speedup while reading from it.
-	_datasets = _datasets.cache(DATASET_CACHE)
-	_datasets = _datasets.shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
-	_datasets = _datasets.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
-	return _datasets  # (image, sxn_token, pos)
+	# split datasets to train_datasets, and test_dataset... right now just set 2 test_dataset
+	_test_dataset = _datasets.take(2)  # (2, ...)
+	_train_datasets = _datasets.skip(2)
 
-def tokenizer_from_json(json_string):
+	_train_datasets = _train_datasets.shuffle(BUFFER_SIZE).batch(BATCH_SIZE) # (:, :, ...)
+	_train_datasets = _train_datasets.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
+	return _train_datasets, _test_dataset  # (:, :, image, sxn_token, pos), (3, image, sxn_token, pos)
+
+def _tokenizer_from_json(json_string):
     """Parses a JSON tokenizer configuration file and returns a
     tokenizer instance.
     # Arguments
@@ -221,7 +223,7 @@ def load_tokenizer_from_path(path):
 	"""
 	with open(path) as f:
 		data = json.load(f)
-		tokenizer = tokenizer_from_json(data)
+		tokenizer = _tokenizer_from_json(data)
 
 	return tokenizer
 

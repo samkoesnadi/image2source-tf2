@@ -46,7 +46,12 @@ def encode_2_sxn(html):
             text = parent_elem.strip()
             if text != "":
                 # if this is style, then change
-                sxn_text += 't { '+text+' } '  # repr can be replaced to str as will for encoding
+
+                # TODO: delete these lines of code, these are only necessary for pix2code because the text in html of the datasets
+                #  do not match the text in the image
+                text = " ".join(map(lambda _ : "texts", text.split(' ')))
+
+                sxn_text += 't { ' + text + ' } '  # repr can be replaced to str as will for encoding
         else:
             sxn_text += parent_elem.name
             if len(parent_elem.attrs) != 0: # add attributes to sxn_text

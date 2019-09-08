@@ -4,7 +4,7 @@ Author: Samuel Koesnadi 2019
 """
 
 from common_definitions import *
-from dataset import get_images_dataset
+from dataset import get_images_dataset, load_additional_info, store_additional_info
 from utils import *
 
 ### Create Model
@@ -43,8 +43,7 @@ class MobileNetV2_AutoEncoder():
 		self.model_evaluate = tf.keras.Model(image_input, [self.output, dec_hidden_4, dec_hidden_3, dec_hidden_2, dec_hidden_1, output])
 
 		# define optimizer and losses
-		learning_rate = CustomSchedule(IMAGE_INPUT_SIZE)
-		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+		self.optimizer = tf.keras.optimizers.Adam(DEFAULT_LEARNING_RATE, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
 		# for additional information
 		self.train_loss = tf.keras.metrics.Mean(name="mobilenet_train_loss")
@@ -53,13 +52,16 @@ class MobileNetV2_AutoEncoder():
 		self.ckpt = tf.train.Checkpoint(model=self.model, optimizer=self.optimizer)
 		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=5)
 
+		self.smart_ckpt_saver = SmartCheckpointSaver(self.ckpt_manager)
+
 		# if a checkpoint exists, restore the latest checkpoint.
 		if self.ckpt_manager.latest_checkpoint:
 			self.ckpt.restore(self.ckpt_manager.latest_checkpoint)
 			print('Latest checkpoint restored from', checkpoint_path, "!!!")
 
 	def loss(self, target, pred):
-		return weighted_loss(target, pred, tf.keras.losses.MeanSquaredError)
+		# return weighted_loss(target, pred, tf.keras.losses.MeanSquaredError)
+		return tf.reduce_sum(tf.keras.losses.MeanSquaredError(reduction="none")(target, pred))  # sum instead of mean so the difference has higher value and not in the scope of decimal
 
 	def decoder_block(self, inp, filters_arr):
 
@@ -70,7 +72,6 @@ class MobileNetV2_AutoEncoder():
 		:return: tf.keras.layers.conv2D
 		"""
 		x = tf.keras.layers.Conv2D(filters_arr[0], 3, padding="same", activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(inp)
-		x = tf.keras.layers.BatchNormalization()(x)
 		x = tf.keras.layers.Conv2D(filters_arr[1], 3, padding="same",  activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(x)
 		x = tf.keras.layers.BatchNormalization()(x)
 		x = tf.keras.layers.UpSampling2D()(x)
@@ -86,9 +87,7 @@ class MobileNetV2_AutoEncoder():
 		:return: tf.keras.layers.conv2D
 		"""
 		x = tf.keras.layers.Conv2D(filters_arr[0], 3, padding="same", activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(inp)
-		x = tf.keras.layers.BatchNormalization()(x)
 		x = tf.keras.layers.Conv2D(filters_arr[0] + (filters_arr[1] - filters_arr[0]), 1, padding="same",  activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(x)
-		x = tf.keras.layers.BatchNormalization()(x)
 		x = tf.keras.layers.Conv2D(filters_arr[1], 3, padding="same",  activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)(x)
 		x = tf.keras.layers.BatchNormalization()(x)
 		x = tf.keras.layers.UpSampling2D()(x)
@@ -106,7 +105,7 @@ class MobileNetV2_AutoEncoder():
 		gradients = tape.gradient(loss, trainable_variables)
 		self.optimizer.apply_gradients(zip(gradients, trainable_variables))  # minimize loss
 
-		train_loss = self.train_loss(loss)
+		self.train_loss(loss)
 
 
 	def evaluate(self, img_tensor, target):
@@ -140,18 +139,17 @@ class MobileNetV2_AutoEncoder():
 		IS_TRAINING = temp_is_training
 
 if __name__ == "__main__":
-	checkpoint_path = "./checkpoints/train/autoencoder"
-	autoencoder = MobileNetV2_AutoEncoder(checkpoint_path)
+	autoencoder = MobileNetV2_AutoEncoder(AUTOENCODER_CHECKPOINT_PATH)
 
 	### Handle Dataset
-	# TODO: seperate between training and evaluation datasets
 	train_dataset = get_images_dataset(ANNOTATIONS_PATH)
+	additional_info = load_additional_info(ADDITIONAL_FILENAME)
 
 	if IS_TRAINING:
 		### Train loop
 		start_epoch = 0
 		if autoencoder.ckpt_manager.latest_checkpoint:
-			start_epoch = int(autoencoder.ckpt_manager.latest_checkpoint.split('-')[-1]) * 5
+			start_epoch = additional_info["autoencoder_epoch"]
 
 		for epoch in range(start_epoch, EPOCHS):
 			start = time.time()
@@ -161,20 +159,33 @@ if __name__ == "__main__":
 			for (batch, img_tensor) in enumerate(train_dataset):
 				autoencoder.train_step(img_tensor, img_tensor)  # same input and target because it is a freakin autoencoder
 
+				if batch % 100 == 0:
+					print('Epoch {} Batch {} Loss {:.4f}'.format(
+						epoch + 1, batch, autoencoder.train_loss.result()))
+
 			if (epoch + 1) % 5 == 0:
-				ckpt_save_path = autoencoder.ckpt_manager.save()
-				print('Saving checkpoint for epoch {} at {}'.format(epoch + 1, ckpt_save_path))
 				if (epoch + 1) <= 10 or (epoch + 1) % 50 == 0:
 					autoencoder.evaluate(img_tensor, img_tensor)
 
-				if (epoch + 1) % 50:
-					print('Saving MobileNetV2 weights for epoch {}'.format(epoch + 1))
-					autoencoder.encoder.save_weights(MOBILENETV2_WEIGHT_PATH)  # save the preprocessing weights
-
 			print('Epoch {} Loss {:.4f}'.format(epoch + 1, autoencoder.train_loss.result()))
-			print('Time taken for 1 epoch: {} secs\n'.format(time.time() - start))
+			print('Time taken for 1 epoch: {} secs'.format(time.time() - start))
+
+			should_break = autoencoder.smart_ckpt_saver(epoch+1, -autoencoder.train_loss.result())  # minus it because we do not have real accuracy, so just make a virtual one by minusing it
+			if should_break == -1:
+				break
+
+			print()
 
 		print ("Training over...")
+
+		print('Saving MobileNetV2 weights for epoch {}'.format(autoencoder.smart_ckpt_saver.max_acc_epoch))
+		autoencoder.ckpt.restore(autoencoder.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
+		autoencoder.encoder.save_weights(MOBILENETV2_WEIGHT_PATH)  # save the preprocessing weights
+
+		# store last epoch
+		print("Storing last epoch")
+		additional_info["autoencoder_epoch"] = max(start_epoch, EPOCHS)
+		store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
 	print ("Start evaluation...")
 	eval_dataset = next(iter(train_dataset))  # TODO: this definitely needs to be changed with more proper pipeline

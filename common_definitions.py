@@ -21,7 +21,10 @@ from PIL import Image
 import pickle
 
 TOP_K = 20000  # this is for tokenizer
-MAX_SEQ_LEN = 1050
+
+# maximum sequence length for dataset and transformer at evaluation time
+MAX_SEQ_LEN_DATASET = 1050
+MAX_SEQ_LEN = 1060
 
 ACTIVATION = tf.nn.leaky_relu
 KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
@@ -30,7 +33,7 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 IMAGE_INPUT_SIZE = 224  # this to fit default criteria from MobileNetV2
 BATCH_SIZE_AUTOENCODER = 64
 BATCH_SIZE = 10
-BUFFER_SIZE = 3000  # this is important for shuffling
+BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 1000
 DROPOUT_RATE = 0.1
 # LABEL_SMOOTHING_EPS = 0.1

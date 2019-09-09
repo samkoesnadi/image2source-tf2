@@ -262,7 +262,7 @@ class Decoder(tf.keras.layers.Layer):
 		self.num_layers = num_layers
 
 		self.embedding = tf.keras.layers.Embedding(target_vocab_size, d_model)
-		self.pos_encoding = raw_positional_encoding(MAX_SEQ_LEN + max_position, d_model)
+		self.pos_encoding = raw_positional_encoding(MAX_SEQ_LEN_DATASET + max_position, d_model)
 
 		self.dec_layers = [DecoderLayer(d_model, num_heads, dff, rate)
 		                   for _ in range(num_layers)]
@@ -355,7 +355,7 @@ class Pipeline():
 		self.preprocessing_model = tf.keras.Model(self.transformer.preprocessing_base_input, self.transformer.preprocessing)
 
 		# define optimizer and loss
-		learning_rate = CustomSchedule(d_model * 2, WARM_UP_STEPS)
+		learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # I take the maximum nodes in one layer
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
 		                                     # epsilon=1e-9)
 		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary

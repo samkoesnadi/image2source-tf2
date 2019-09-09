@@ -85,7 +85,7 @@ def convert_and_write_all_datasets(annotations_path, filename):
 	tokenizer.word_index['<pad>'] = 0
 	tokenizer.index_word[0] = '<pad>'
 
-	# constrain data to MAX_SEQ_LEN
+	# constrain data to MAX_SEQ_LEN_DATASET
 	positions = len(seqs) * [0]
 	max_position = 0
 
@@ -94,10 +94,10 @@ def convert_and_write_all_datasets(annotations_path, filename):
 
 	for i_seq, seq in enumerate(seqs):
 		len_seq = len(seq)
-		if len_seq < MAX_SEQ_LEN:
-			seq = seq + (MAX_SEQ_LEN - len_seq) * [0]
-		elif len_seq > MAX_SEQ_LEN:
-			tensors = [append_tensors(j, i_seq, seq[j:MAX_SEQ_LEN + j]) for j in range(1, len_seq - MAX_SEQ_LEN + 1)]
+		if len_seq < MAX_SEQ_LEN_DATASET:
+			seq = seq + (MAX_SEQ_LEN_DATASET - len_seq) * [0]
+		elif len_seq > MAX_SEQ_LEN_DATASET:
+			tensors = [append_tensors(j, i_seq, seq[j:MAX_SEQ_LEN_DATASET + j]) for j in range(1, len_seq - MAX_SEQ_LEN_DATASET + 1)]
 			tensors = list(zip(*tensors))  # transpose it
 
 			# put it in global variables
@@ -105,10 +105,10 @@ def convert_and_write_all_datasets(annotations_path, filename):
 			positions.extend(tensors[1])
 			image_ids.extend(tensors[2])
 
-			if (len_seq - MAX_SEQ_LEN) > max_position:
-				max_position = len_seq - MAX_SEQ_LEN
+			if (len_seq - MAX_SEQ_LEN_DATASET) > max_position:
+				max_position = len_seq - MAX_SEQ_LEN_DATASET
 
-			seq = seq[:MAX_SEQ_LEN]  # replace seq with truncated one
+			seq = seq[:MAX_SEQ_LEN_DATASET]  # replace seq with truncated one
 		else:
 			continue
 

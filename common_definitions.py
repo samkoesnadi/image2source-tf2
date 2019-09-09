@@ -23,7 +23,7 @@ import pickle
 TOP_K = 20000  # this is for tokenizer
 
 # maximum sequence length for dataset and transformer at evaluation time
-MAX_SEQ_LEN_DATASET = 1050
+MAX_SEQ_LEN_DATASET = 1060
 MAX_SEQ_LEN = 1060
 
 ACTIVATION = tf.nn.leaky_relu

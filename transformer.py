@@ -52,6 +52,16 @@ def create_look_ahead_mask(size):  # smart thing going on here I should say
   return mask  # (seq_len, seq_len)
 
 
+def create_masks(tar):
+	# Used in the 1st attention block in the decoder.
+	# It is used to pad and mask future tokens in the input received by
+	# the decoder.
+	look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
+	dec_target_padding_mask = create_padding_mask(tar)
+	combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
+
+	return combined_mask
+
 def scaled_dot_product_attention(q, k, v, mask):
 	"""Calculate the attention weights.
 	q, k, v must have matching leading dimensions.
@@ -381,8 +391,18 @@ class Pipeline():
 			print('Latest checkpoint restored!!')
 
 
-	def loss(self, real, pred):
+	def loss(self, real, pred, position):
+		"""
+
+		:param real:
+		:param pred:
+		:param position: if position > 0, then mask all loss except the last one (make sure that it is not padding)
+		:return:
+		"""
 		mask = tf.math.logical_not(tf.math.equal(real, 0))
+		mask_pos = tf.map_fn(lambda pos: tf.ones(MAX_SEQ_LEN_DATASET - 1, dtype=tf.dtypes.bool) if pos == 0 else tf.cast(tf.one_hot(MAX_SEQ_LEN_DATASET - 2, MAX_SEQ_LEN_DATASET - 1) , dtype=tf.dtypes.bool)
+		                     , position, dtype=tf.dtypes.bool)
+		mask = tf.math.logical_and(mask, mask_pos)
 
 		# # convert real to one-hot encoding... this is to apply label smoothing
 		# real_one_hot = tf.one_hot(real, self.target_vocab_size)
@@ -406,14 +426,14 @@ class Pipeline():
 		tar_inp = sxn_token[:, :-1]
 		tar_real = sxn_token[:, 1:]
 
-		look_ahead_mask = create_look_ahead_mask(tf.shape(tar_inp)[1])
+		_mask = create_masks(tar_inp)
 
 		with tf.GradientTape() as tape:
 			predictions, _ = self.transformer(img, tar_inp,
 			                             True,
-			                             look_ahead_mask,
+			                             _mask,
 			                             decode_pos)
-			loss = self.loss(tar_real, predictions)
+			loss = self.loss(tar_real, predictions, decode_pos)
 
 		gradients = tape.gradient(loss, self.transformer.trainable_variables)
 		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
@@ -424,7 +444,8 @@ class Pipeline():
 
 	def evaluate(self, img, plot_layer=False):
 		"""
-
+		TODO: implement window size in it
+		
 		:param plot_layer: Boolean to plot the intermediate layers
 		:param img: (height, width, 3)
 		:return:
@@ -440,7 +461,7 @@ class Pipeline():
 			# generate plot of encoder_input
 			# store the figures
 			for i, layer in enumerate([encoder_input]):
-				save_fig_png(layer, "transformer/prediction_encoder_input_feature_layer_"+str(i))
+				save_fig_png(layer, "transformer/prediction_encoder_input_feature_layer_" + str(i))
 
 		# as the target is english, the first word to the transformer should be the
 		# english start token.
@@ -452,10 +473,10 @@ class Pipeline():
 
 			# predictions.shape == (batch_size, seq_len, vocab_size)
 			predictions, attention_weights = self.transformer(encoder_input,
-			                                             output,
-			                                             False,
-			                                             look_ahead_mask,
-			                                             None)
+			                                                  output,
+			                                                  False,
+			                                                  look_ahead_mask,
+			                                                  None)
 
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
@@ -551,7 +572,7 @@ class Pipeline():
 		target = test_data[1].numpy()
 		position = test_data[2].numpy()
 
-		result, attention_weights = self.evaluate(img, True)
+		result, attention_weights = self.evaluate(img)
 
 		result = result.numpy()  # convert to numpy
 

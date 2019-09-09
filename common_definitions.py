@@ -30,12 +30,13 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 IMAGE_INPUT_SIZE = 224  # this to fit default criteria from MobileNetV2
 BATCH_SIZE_AUTOENCODER = 64
 BATCH_SIZE = 10
-BUFFER_SIZE = 500  # this is important for shuffling
+BUFFER_SIZE = 3000  # this is important for shuffling
 EPOCHS = 1000
 DROPOUT_RATE = 0.1
 # LABEL_SMOOTHING_EPS = 0.1
 MIN_EPS_TO_BREAK = 10
 DEFAULT_LEARNING_RATE = 1e-3
+WARM_UP_STEPS = 2000  # for scheduler
 # LEARNING_RATE_DECAY = (DEFAULT_LEARNING_RATE - 4e-4) / EPOCHS / 100
 
 IS_TRAINING = True

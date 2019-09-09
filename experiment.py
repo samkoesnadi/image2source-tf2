@@ -3,6 +3,7 @@ Scratch page that you can experiment with anything you want
 Author: Samuel Koesnadi 2019
 """
 
+from utils import *
 from common_definitions import *
 from html_SXN_parser.parser import encode_2_sxn, decode_2_html
 
@@ -19,3 +20,10 @@ print(train_seqs)
 print(list(map(lambda i: tokenizer.index_word[i], train_seqs[0])))
 print(tokenizer.sequences_to_texts(train_seqs))
 print(decode_2_html(tokenizer.sequences_to_texts(train_seqs)[0]))
+
+temp_learning_rate_schedule = CustomSchedule(d_model*2, WARM_UP_STEPS)
+
+plt.plot(temp_learning_rate_schedule(tf.range(40000, dtype=tf.float32)))
+plt.ylabel("Learning Rate")
+plt.xlabel("Train Step")
+plt.show()

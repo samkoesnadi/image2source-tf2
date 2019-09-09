@@ -24,6 +24,7 @@ img_default_path = "../images/0.png"
 default_url = "#"
 css_open = '$'  # this cannot be used everywhere in CSS (reserved)
 css_close = '&'  # this cannot be used everywhere in CSS (reserved)
+css_space = '`'  #reserved
 
 
 def removeComments(string):
@@ -80,7 +81,9 @@ def encode_2_sxn(html):
             else:
                 # else encode all children tags
                 if parent_elem.name == "style":
-                    sxn_text += re.sub(r'}', css_close, re.sub(r'{', css_open, removeComments(parent_elem.string.strip())))
+                    css = re.sub(r'}', css_close, re.sub(r'{', css_open, removeComments(parent_elem.string.strip())))
+                    css = re.sub(r"(?<=\w)\s+(?=[\.\#\w\*])", css_space, css)
+                    sxn_text += css
                 else:
                     for elem in parent_elem.children:
                         if type(elem) != bs4.element.Comment and elem.name != "script":  # do not put comment in SXN and do not put <script> in SXN
@@ -99,7 +102,7 @@ def encode_2_sxn(html):
     sxn_result = re.sub(r'url\s*\(\s*\"([^\"]*)\"\s*\)', "url(\""+img_default_path_token+"\")", sxn_result)
 
     # put whitespace in between proper punctuation and number
-    sxn_result = re.sub(r'(?<=\W)([0-9]+)(\w+)', r"\1 \2", sxn_result)
+    sxn_result = re.sub(r'(?<=\W)([0-9]+)([a-zA-Zäüöß]+)', r"\1 \2", sxn_result)
     sxn_result = re.sub(r'([\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~])', r' \1 ', sxn_result)
 
     # filter all kinds of whitespaces
@@ -112,7 +115,7 @@ def decode_2_html(sxn_result):
 
     # unfilter whitespaces of punctuation
     sxn_result = re.sub(r'\s*([\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~])\s*', r'\1', sxn_result)
-    sxn_result = re.sub(r'(?<=\W)([0-9]+)\s+(\w+)', r"\1\2", sxn_result)
+    sxn_result = re.sub(r'(?<=\W)([0-9]+)\s+([a-zA-Zäüöß]+)', r"\1\2", sxn_result)
 
     # re-append html tag
     sxn_result = "html{" + sxn_result + "}"
@@ -139,7 +142,7 @@ def decode_2_html(sxn_result):
                     child_i_ch, child_html_result = __decode_sxn(sxn_text[i_ch+1:])
 
                     if "style" in tag_name:  # parse CSS back to normal design. TODO please explore this thing and fix if there is issue
-                        child_html_result = child_html_result.replace(css_open, "{").replace(css_close, "}")
+                        child_html_result = child_html_result.replace(css_open, "{").replace(css_close, "}").replace(css_space, " ")
                 else:
                     child_i_ch, child_html_result = __decode_sxn(sxn_text[i_ch - len(ch_str):])
                     i_ch -= len(ch_str) + 1
@@ -179,6 +182,7 @@ if __name__ == "__main__":
     # open the html file
     # filename = "all_data/0CE73E18-575A-4A70-9E40-F000B250344F.html"
     filename = "../../datasets/example.html"
+    filename = "../generated/ground_truth_0.html"
     filename_generated = "generated_example.html"
     with open(filename, "r") as f:
         html = f.read()

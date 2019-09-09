@@ -665,7 +665,7 @@ if __name__ == "__main__":
 
 					# write the ground truth to file
 					with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
-						true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()])[0]  # translate to predicted_sxn
+						true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()[1:]])[0]  # translate to predicted_sxn
 						true_html = decode_2_html(true_sxn)  # translate to predicted html
 						f.write(true_html)
 
@@ -696,6 +696,6 @@ if __name__ == "__main__":
 
 		# write the ground truth to file
 		with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
-			true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()])[0]  # translate to predicted_sxn
+			true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()[1:]])[0]  # translate to predicted_sxn
 			true_html = decode_2_html(true_sxn)  # translate to predicted html
 			f.write(true_html)

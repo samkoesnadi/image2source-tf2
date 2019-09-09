@@ -578,8 +578,6 @@ class Pipeline():
 		else:
 			print("Result size is smaler than target")
 
-		print('\nPredicted html: {}'.format(predicted_html))
-
 		return predicted_html
 
 

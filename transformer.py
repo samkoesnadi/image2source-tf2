@@ -362,8 +362,8 @@ class Pipeline():
 		# define optimizer and loss
 		learning_rate = CustomSchedule(d_model)
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
-		                                     epsilon=1e-9)
-		                                     # epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
+		                                     # epsilon=1e-9)
+		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
 		# self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
 		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True,
 		                                                            reduction='none')
@@ -663,6 +663,12 @@ if __name__ == "__main__":
 					with open("generated/generated_" + str(i) + ".html", "w") as f:
 						f.write(html)
 
+					# write the ground truth to file
+					with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
+						true_sxn = master.tokenizer.sequences_to_texts([test_data[1]])[0]  # translate to predicted_sxn
+						true_html = decode_2_html(true_sxn)  # translate to predicted html
+						f.write(true_html)
+
 			print()
 
 		print('Saving Transformer weights for epoch {}'.format(master.smart_ckpt_saver.max_acc_epoch))
@@ -687,3 +693,9 @@ if __name__ == "__main__":
 		# write the html to file
 		with open("generated/generated_"+str(i)+".html", "w") as f:
 			f.write(html)
+
+		# write the ground truth to file
+		with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
+			true_sxn = master.tokenizer.sequences_to_texts([test_data[1]])[0]  # translate to predicted_sxn
+			true_html = decode_2_html(true_sxn)  # translate to predicted html
+			f.write(true_html)

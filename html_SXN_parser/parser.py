@@ -32,10 +32,6 @@ def removeComments(string):
     return string
 
 def encode_2_sxn(html):
-    # filter all kinds of whitespaces
-    html = html.replace("\t", "")
-    html = re.sub(r'\s+', ' ', html)  # if there are whitespaces in a sequence, just put it once as it is just the same in HTML
-
     soup = BeautifulSoup(html, 'lxml')
 
     # TODO: if the seperator token is found that change it to something else
@@ -84,7 +80,7 @@ def encode_2_sxn(html):
             else:
                 # else encode all children tags
                 if parent_elem.name == "style":
-                    sxn_text += re.sub(r';', " ; ", re.sub(r'}', css_close, re.sub(r'{', css_open, removeComments(parent_elem.string.strip()))))
+                    sxn_text += re.sub(r'}', css_close, re.sub(r'{', css_open, removeComments(parent_elem.string.strip())))
                 else:
                     for elem in parent_elem.children:
                         if type(elem) != bs4.element.Comment and elem.name != "script":  # do not put comment in SXN and do not put <script> in SXN
@@ -100,11 +96,23 @@ def encode_2_sxn(html):
     sxn_result = __encode_sxn(soup.contents[soup_index])  # encode the html to sxn
 
     # change to default value for img_path
-    sxn_result = re.sub(r'(url\(\").*(\"\))', r"\1"+img_default_path_token+r"\2", sxn_result)
+    sxn_result = re.sub(r'url\s*\(\s*\"([^\"]*)\"\s*\)', "url(\""+img_default_path_token+"\")", sxn_result)
+
+    # put whitespace in between proper punctuation and number
+    sxn_result = re.sub(r'(?<=\W)([0-9]+)(\w+)', r"\1 \2", sxn_result)
+    sxn_result = re.sub(r'([\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~])', r' \1 ', sxn_result)
+
+    # filter all kinds of whitespaces
+    sxn_result = sxn_result.replace("\t", "")
+    sxn_result = re.sub(r'\s+', ' ', sxn_result)  # if there are whitespaces in a sequence, just put it once as it is just the same in HTML
 
     return sxn_result[sxn_result.index("{")+1:sxn_result.rfind("}")]  # remove html bla bla bla{ } from the result
 
 def decode_2_html(sxn_result):
+
+    # unfilter whitespaces of punctuation
+    sxn_result = re.sub(r'\s*([\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~])\s*', r'\1', sxn_result)
+    sxn_result = re.sub(r'(?<=\W)([0-9]+)\s+(\w+)', r"\1\2", sxn_result)
 
     # re-append html tag
     sxn_result = "html{" + sxn_result + "}"
@@ -163,7 +171,7 @@ def decode_2_html(sxn_result):
     html_result = __decode_sxn(sxn_result)[1]
 
     # decode image path token with real image path
-    html_result = html_result.replace("***", img_default_path)
+    html_result = html_result.replace(img_default_path_token, img_default_path)
 
     return BeautifulSoup(html_result, "lxml").prettify()
 

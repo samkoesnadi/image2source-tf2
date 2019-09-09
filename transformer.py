@@ -221,10 +221,8 @@ class Encoder(tf.keras.layers.Layer):
 		self.num_layers = num_layers
 
 		self.reshape = tf.keras.layers.Reshape((49, 1280))
-		self.dense = tf.keras.layers.Dense(d_model + (1280-d_model) // 2, activation=ACTIVATION,
-		                                       kernel_initializer=KERNEL_INITIALIZER)
 		self.embedding = tf.keras.layers.Dense(d_model, activation=ACTIVATION,
-		                                       kernel_initializer=KERNEL_INITIALIZER)  # TODO: the activation might need to be changed
+		                                       kernel_initializer=KERNEL_INITIALIZER)
 		self.batchnorm_embedding = tf.keras.layers.BatchNormalization()
 		self.pos_encoding = positional_encoding(input_vocab_size, self.d_model)
 
@@ -233,24 +231,21 @@ class Encoder(tf.keras.layers.Layer):
 
 		self.dropout1 = tf.keras.layers.Dropout(rate)
 		self.dropout2 = tf.keras.layers.Dropout(rate)
-		self.dropout3 = tf.keras.layers.Dropout(rate)
 
 	def call(self, x, training, mask):
 		# encode embedding and position
 		x = self.reshape(x)
-		x = self.dense(x)
-		x = self.dropout1(x, training=training)
 
 		seq_len = tf.shape(x)[1]  # define seq len from the shape of first dimension of x
 
 		x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
 		x = self.batchnorm_embedding(x)
-		x = self.dropout2(x, training=training)
+		x = self.dropout1(x, training=training)
 
 		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
 		x += self.pos_encoding[:, :seq_len, :]
 
-		x = self.dropout3(x, training=training)
+		x = self.dropout2(x, training=training)
 
 		for i in range(self.num_layers):
 			x = self.enc_layers[i](x, training, mask)
@@ -578,8 +573,6 @@ class Pipeline():
 		else:
 			print("Result size is smaler than target")
 
-		print('\nPredicted html: {}'.format(predicted_html))
-
 		return predicted_html
 
 
@@ -665,7 +658,7 @@ if __name__ == "__main__":
 
 					# write the ground truth to file
 					with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
-						true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()])[0]  # translate to predicted_sxn
+						true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()[1:]])[0]  # translate to predicted_sxn
 						true_html = decode_2_html(true_sxn)  # translate to predicted html
 						f.write(true_html)
 
@@ -696,6 +689,6 @@ if __name__ == "__main__":
 
 		# write the ground truth to file
 		with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
-			true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()])[0]  # translate to predicted_sxn
+			true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()[1:]])[0]  # translate to predicted_sxn
 			true_html = decode_2_html(true_sxn)  # translate to predicted html
 			f.write(true_html)

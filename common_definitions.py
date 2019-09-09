@@ -29,7 +29,7 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 224  # this to fit default criteria from MobileNetV2
 BATCH_SIZE_AUTOENCODER = 64
-BATCH_SIZE = 13
+BATCH_SIZE = 14
 BUFFER_SIZE = 500  # this is important for shuffling
 EPOCHS = 1000
 DROPOUT_RATE = 0.1
@@ -51,7 +51,7 @@ TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer.h5"  # transformer
 
 AUTOENCODER_CHECKPOINT_PATH = "./checkpoints/train/autoencoder"
 # TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning"  # this has good result!
-TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning"
+TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning_one_dense"
 # DATASET_CACHE = "/tmp/img2source_dataset_cache"
 
 ### Set Hyperparameters for Transformer

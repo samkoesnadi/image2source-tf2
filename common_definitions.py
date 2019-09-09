@@ -50,6 +50,7 @@ MOBILENETV2_WEIGHT_PATH = "model_weights/pix2code_MobileNetV2.h5"  # autoencoder
 TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer.h5"  # transformer trained on pix2code datasets
 
 AUTOENCODER_CHECKPOINT_PATH = "./checkpoints/train/autoencoder"
+# TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning"  # this has good result!
 TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning"
 # DATASET_CACHE = "/tmp/img2source_dataset_cache"
 

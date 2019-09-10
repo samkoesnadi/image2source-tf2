@@ -648,7 +648,9 @@ if __name__ == "__main__":
 					print('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
 						epoch + 1, batch, master.train_loss.result(), master.train_accuracy.result()))
 
-				total_batch_in_dataset = batch + 1
+				total_batch_in_dataset = batch
+
+			total_batch_in_dataset += 1
 
 			print('Epoch {}: Total batch {} Loss {:f} Accuracy {:f}'.format(epoch + 1, total_batch_in_dataset,
 			                                                    master.train_loss.result(),

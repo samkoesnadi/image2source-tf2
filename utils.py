@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import tensorflow as tf
-from common_definitions import EPOCHS, MIN_EPS_TO_BREAK
+from common_definitions import EPOCHS, MIN_EPOCH_TO_BREAK, GAP_OF_DEAD_EPOCH
 
 def save_fig_png(input_arr, filename):
 	"""
@@ -99,7 +99,7 @@ class SmartCheckpointSaver:
 			self.max_acc_epoch = curr_epoch
 			return 1
 		else:
-			epoch_min = min(EPOCHS, max(MIN_EPS_TO_BREAK, int(self.max_acc_epoch * 1.5)))  # min epoch to break is 10
+			epoch_min = min(EPOCHS, max(MIN_EPOCH_TO_BREAK, int(self.max_acc_epoch * 1.5)), int(self.max_acc_epoch + GAP_OF_DEAD_EPOCH))  # min epoch to break is 10
 
 			if epoch_min <= curr_epoch:
 				return -1

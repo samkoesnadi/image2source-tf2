@@ -1,6 +1,4 @@
 import logging
-logging.basicConfig(level=logging.DEBUG)
-
 import tensorflow as tf
 
 # You'll generate plots of attention in order to see which parts of an image
@@ -20,6 +18,8 @@ from glob import glob
 from PIL import Image
 import pickle
 
+LOGGING_LEVEL = logging.DEBUG
+
 TOP_K = 20000  # this is for tokenizer
 
 # maximum sequence length for dataset and transformer at evaluation time
@@ -37,7 +37,8 @@ BUFFER_SIZE = 2000  # this is important for shuffling
 EPOCHS = 1000
 DROPOUT_RATE = 0.1
 # LABEL_SMOOTHING_EPS = 0.1
-MIN_EPS_TO_BREAK = 10
+MIN_EPOCH_TO_BREAK = 10
+GAP_OF_DEAD_EPOCH = 50  # gap before it is going to kill the no more training network
 DEFAULT_LEARNING_RATE = 1e-3
 WARM_UP_STEPS = 2000  # for scheduler
 # LEARNING_RATE_DECAY = (DEFAULT_LEARNING_RATE - 4e-4) / EPOCHS / 100
@@ -74,3 +75,7 @@ num_layers = 6
 d_model = 512
 dff = 2048
 num_heads = 8
+
+
+
+logging.basicConfig(level=LOGGING_LEVEL)

@@ -330,8 +330,9 @@ class Transformer(tf.keras.Model):
 	def call(self, inp, tar, training, look_ahead_mask, decode_pos):
 		if training:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
 			inp = self.preprocessing_base(inp)
-
-		enc_output = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
+			enc_output = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
+		else:  # this is to speed up inference time, so put the encoder preprocessed outside of the Transformer
+			enc_output = inp
 
 		# dec_output.shape == (batch_size, tar_seq_len, d_model)
 		dec_output, attention_weights = self.decoder(
@@ -365,7 +366,7 @@ class Pipeline():
 		self.preprocessing_model = tf.keras.Model(self.transformer.preprocessing_base_input, self.transformer.preprocessing)
 
 		# define optimizer and loss
-		learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # I take the maximum nodes in one layer
+		learning_rate = CustomSchedule(self.target_vocab_size * MAX_SEQ_LEN_DATASET // 42, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
 		                                     # epsilon=1e-9)
 		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
@@ -445,7 +446,7 @@ class Pipeline():
 	def evaluate(self, img, plot_layer=False):
 		"""
 		TODO: implement window size in it
-		
+
 		:param plot_layer: Boolean to plot the intermediate layers
 		:param img: (height, width, 3)
 		:return:
@@ -456,6 +457,7 @@ class Pipeline():
 		# preprocessing
 		img_expand_dims = tf.expand_dims(img, 0)
 		encoder_input = self.preprocessing_model(img_expand_dims)  # preprocessing_model needs to come in batch
+		encoder_output = self.transformer.encoder(encoder_input, False, None)  # (batch_size, inp_seq_len, d_model)
 
 		if plot_layer:
 			# generate plot of encoder_input
@@ -472,7 +474,7 @@ class Pipeline():
 			look_ahead_mask = create_look_ahead_mask(tf.shape(output)[1])
 
 			# predictions.shape == (batch_size, seq_len, vocab_size)
-			predictions, attention_weights = self.transformer(encoder_input,
+			predictions, attention_weights = self.transformer(encoder_output,
 			                                                  output,
 			                                                  False,
 			                                                  look_ahead_mask,
@@ -572,27 +574,32 @@ class Pipeline():
 		target = test_data[1].numpy()
 		position = test_data[2].numpy()
 
+		if LOGGING_LEVEL == logging.DEBUG: start_time = time.time()
 		result, attention_weights = self.evaluate(img)
+		if LOGGING_LEVEL == logging.DEBUG: end_time = time.time()
 
 		result = result.numpy()  # convert to numpy
-
-		accuracy = self.calculate_accuracy(target, result, position)  # print accuracy score
-
-		# [1:] key is to remove the <start> token
-		result = result[1:]
+		result = result[1:]  # [1:] key is to remove the <start> token
 
 		predicted_sxn = self.tokenizer.sequences_to_texts([result])[0]  # translate to predicted_sxn
 		predicted_html = decode_2_html(predicted_sxn)  # translate to predicted html
 
-		if accuracy >= 0:
-			print("Accuracy score: {}".format(accuracy))  # print accuracy score of both the sequence
+		if LOGGING_LEVEL == logging.DEBUG:
+			full_end_time = time.time()
 
 			if plot:
 				self.plot_attention_weights(attention_weights, [i for i in range(49)], result, plot,
 				                            "layers_figure/transformer/last_attention_weights.png")
 				print("Plot attention weight is generated.")
-		else:
-			print("Result size is smaler than target")
+
+			accuracy = self.calculate_accuracy(target, result, position)  # print accuracy score
+			if accuracy >= 0:
+				print("Accuracy score: {}".format(accuracy))  # print accuracy score of both the sequence
+			else:
+				print("Result size is smaler than target")
+
+			print("Time spent inference of network: {}".format(end_time - start_time))
+			print("Time spent translating: {}".format(full_end_time - start_time))
 
 		return predicted_html
 
@@ -625,6 +632,8 @@ if __name__ == "__main__":
 				print('Loading MobileNetV2 weights for epoch {}'.format(start_epoch + 1))
 				master.transformer.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
 
+		total_batch_in_dataset = 0
+
 		for epoch in range(start_epoch, EPOCHS):
 			start = time.time()
 
@@ -639,7 +648,9 @@ if __name__ == "__main__":
 					print('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
 						epoch + 1, batch, master.train_loss.result(), master.train_accuracy.result()))
 
-			print('Epoch {} Loss {:.4f} Accuracy {:.4f}'.format(epoch + 1,
+				total_batch_in_dataset = batch + 1
+
+			print('Epoch {}: Total batch {} Loss {:f} Accuracy {:f}'.format(epoch + 1, total_batch_in_dataset,
 			                                                    master.train_loss.result(),
 			                                                    master.train_accuracy.result()))
 
@@ -664,9 +675,7 @@ if __name__ == "__main__":
 				# translate image to html for evaluation
 				for i, test_data in enumerate(test_dataset):
 					print("Translating test index-" + str(i))
-					start_time = time.time()
-					html = master.translate(test_data, "decoder_layer4_block2")
-					print("Translated in {} s".format(time.time() - start_time))
+					html = master.translate(test_data, "")
 
 					# store image for reference
 					plt.imshow(test_data[0])
@@ -695,9 +704,7 @@ if __name__ == "__main__":
 	# translate image to html
 	for i, test_data in enumerate(test_dataset):
 		print("Translating test index-" + str(i))
-		start_time = time.time()
-		html = master.translate(test_data, "decoder_layer4_block2")
-		print("Translated in {} s".format(time.time()-start_time))
+		html = master.translate(test_data, "")
 
 		# store image for reference
 		plt.imshow(test_data[0])

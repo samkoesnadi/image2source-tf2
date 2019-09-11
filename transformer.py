@@ -9,6 +9,8 @@ Author: Samuel Koesnadi 2019
 Attention weights naming:
 decoder_layer4_block2 means 4th layer (from maximum num_layers) and second block (from the two blocks that decoder has)
 """
+
+import cv2
 from datetime import datetime
 
 from common_definitions import *
@@ -16,6 +18,15 @@ from utils import *
 from dataset import *
 from html_SXN_parser.parser import decode_2_html
 from sklearn.metrics import accuracy_score
+
+if not USE_GPU:
+	os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
+	if tf.test.gpu_device_name():
+		print('GPU found')
+	else:
+		print("No GPU found")
+
 
 ### POSITIONAL ENCODING
 def get_angles(pos, i, d_model):
@@ -562,7 +573,7 @@ class Pipeline():
 			return -1
 
 
-	def translate(self, test_data, plot=''):
+	def translate_from_dataset(self, test_data, plot=''):
 		"""
 
 		:param test_data:
@@ -581,8 +592,8 @@ class Pipeline():
 		result = result.numpy()  # convert to numpy
 		result = result[1:]  # [1:] key is to remove the <start> token
 
-		predicted_sxn = self.tokenizer.sequences_to_texts([result])[0]  # translate to predicted_sxn
-		predicted_html = decode_2_html(predicted_sxn)  # translate to predicted html
+		predicted_sxn = self.tokenizer.sequences_to_texts([result])[0]  # translate_from_dataset to predicted_sxn
+		predicted_html = decode_2_html(predicted_sxn)  # translate_from_dataset to predicted html
 
 		if LOGGING_LEVEL == logging.DEBUG:
 			full_end_time = time.time()
@@ -600,6 +611,18 @@ class Pipeline():
 
 			print("Time spent inference of network: {}".format(end_time - start_time))
 			print("Time spent translating: {}".format(full_end_time - start_time))
+
+		return predicted_html
+
+
+	def translate(self, img):
+		result, attention_weights = master.evaluate(img)
+
+		result = result.numpy()  # convert to numpy
+		result = result[1:]  # [1:] key is to remove the <start> token
+
+		predicted_sxn = master.tokenizer.sequences_to_texts([result])[0]  # translate_from_dataset to predicted_sxn
+		predicted_html = decode_2_html(predicted_sxn)  # translate_from_dataset to predicted html
 
 		return predicted_html
 
@@ -674,10 +697,10 @@ if __name__ == "__main__":
 				break
 
 			if (epoch+1) % 50 == 0:
-				# translate image to html for evaluation
+				# translate_from_dataset image to html for evaluation
 				for i, test_data in enumerate(test_dataset):
 					print("Translating test index-" + str(i))
-					html = master.translate(test_data, "")
+					html = master.translate_from_dataset(test_data, "")
 
 					# store image for reference
 					plt.imshow(test_data[0])
@@ -690,8 +713,8 @@ if __name__ == "__main__":
 
 					# write the ground truth to file
 					with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
-						true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()[1:]])[0]  # translate to predicted_sxn
-						true_html = decode_2_html(true_sxn)  # translate to predicted html
+						true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()[1:]])[0]  # translate_from_dataset to predicted_sxn
+						true_html = decode_2_html(true_sxn)  # translate_from_dataset to predicted html
 						f.write(true_html)
 
 			print()
@@ -700,25 +723,35 @@ if __name__ == "__main__":
 		master.ckpt.restore(master.ckpt_manager.latest_checkpoint)  # load checkpoint that was just trained to model
 		master.transformer.save_weights(TRANSFORMER_WEIGHT_PATH)  # save the preprocessing weights
 
-	# evaluate
-	print ("Start evaluation...")
+	if IS_TEST_IMAGE:
+		img = load_image(TARGET_FILENAME)
 
-	# translate image to html
-	for i, test_data in enumerate(test_dataset):
-		print("Translating test index-" + str(i))
-		html = master.translate(test_data, "")
-
-		# store image for reference
-		plt.imshow(test_data[0])
-		plt.savefig('generated/transformer_input_img_{}.png'.format(i), bbox_inches='tight')
-		plt.close()
+		predicted_html = master.translate(img)
 
 		# write the html to file
-		with open("generated/generated_"+str(i)+".html", "w") as f:
-			f.write(html)
+		with open("generated/generated_" + TARGET_FILENAME + ".html", "w") as f:
+			f.write(predicted_html)
 
-		# write the ground truth to file
-		with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
-			true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()[1:]])[0]  # translate to predicted_sxn
-			true_html = decode_2_html(true_sxn)  # translate to predicted html
-			f.write(true_html)
+	else:
+		# evaluate
+		print ("Start evaluation...")
+
+		# translate_from_dataset image to html
+		for i, test_data in enumerate(test_dataset):
+			print("Translating test index-" + str(i))
+			html = master.translate_from_dataset(test_data, "")
+
+			# store image for reference
+			plt.imshow(test_data[0])
+			plt.savefig('generated/transformer_input_img_{}.png'.format(i), bbox_inches='tight')
+			plt.close()
+
+			# write the html to file
+			with open("generated/generated_"+str(i)+".html", "w") as f:
+				f.write(html)
+
+			# write the ground truth to file
+			with open("generated/ground_truth_" + str(i) + ".html", "w") as f:
+				true_sxn = master.tokenizer.sequences_to_texts([test_data[1].numpy()[1:]])[0]  # translate_from_dataset to predicted_sxn
+				true_html = decode_2_html(true_sxn)  # translate_from_dataset to predicted html
+				f.write(true_html)

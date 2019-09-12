@@ -377,7 +377,7 @@ class Pipeline():
 		self.preprocessing_model = tf.keras.Model(self.transformer.preprocessing_base_input, self.transformer.preprocessing)
 
 		# define optimizer and loss
-		learning_rate = CustomSchedule(self.target_vocab_size * MAX_SEQ_LEN_DATASET // 42, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
+		learning_rate = CustomSchedule(d_model, WARM_UP_STEPS, 1.7)  # this parameter seems to work. It is however opened to be changed
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
 		                                     # epsilon=1e-9)
 		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
@@ -405,6 +405,7 @@ class Pipeline():
 
 	def loss(self, real, pred, position):
 		"""
+		TODO: normalize this shit instead of sum
 
 		:param real:
 		:param pred:

@@ -32,7 +32,7 @@ def save_fig_png(input_arr, filename):
 
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-	def __init__(self, d_model, warmup_steps=4000, multiplier=1.7):
+	def __init__(self, d_model, warmup_steps=4000, multiplier=1):
 		super(CustomSchedule, self).__init__()
 
 		self.d_model = d_model

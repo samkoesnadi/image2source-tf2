@@ -241,32 +241,34 @@ class Encoder(tf.keras.layers.Layer):
 		self.d_model = d_model
 		self.num_layers = num_layers
 
-		self.reshape = tf.keras.layers.Reshape((49, 1280))
+		self.bottleneck = tf.keras.layers.Conv2D(d_model + (1280 - d_model) // 2, 1, activation=ACTIVATION,
+		                                         kernel_initializer=KERNEL_INITIALIZER)
+		self.reshape = tf.keras.layers.Reshape((49, d_model + (1280 - d_model) // 2))
 		self.embedding = tf.keras.layers.Dense(d_model, activation=ACTIVATION,
-		                                       kernel_initializer=KERNEL_INITIALIZER)  # TODO: the activation might need to be changed
-		self.batchnorm_embedding = tf.keras.layers.BatchNormalization()
+		                                       kernel_initializer=KERNEL_INITIALIZER,
+		                                       kernel_regularizer=tf.keras.regularizers.l2(REGULARIZER_RATE))
 		self.pos_encoding = positional_encoding(input_vocab_size, self.d_model)
 
 		self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
 		                   for _ in range(num_layers)]
 
 		self.dropout1 = tf.keras.layers.Dropout(rate)
-		self.dropout2 = tf.keras.layers.Dropout(rate)
 
 	def call(self, x, training, mask):
 		# encode embedding and position
+		x = self.bottleneck(x)
 		x = self.reshape(x)
 
 		seq_len = tf.shape(x)[1]  # define seq len from the shape of first dimension of x
 
 		x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
-		x = self.batchnorm_embedding(x)
-		x = self.dropout1(x, training=training)
+
+		### I deleted batch normalization here because we need the information of color distribution here ###
 
 		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
 		x += self.pos_encoding[:, :seq_len, :]
 
-		x = self.dropout2(x, training=training)
+		x = self.dropout1(x, training=training)
 
 		for i in range(self.num_layers):
 			x = self.enc_layers[i](x, training, mask)
@@ -381,9 +383,13 @@ class Pipeline():
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
 		                                     # epsilon=1e-9)
 		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
-		# self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
-		self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True,
-		                                                            reduction='none')
+
+		if LABEL_SMOOTHING_EPS is None:
+			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True,
+			                                                                        reduction='none')
+		else:
+			self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
+
 
 		# define train loss and accuracy
 		self.train_loss = tf.keras.metrics.Mean(name='train_loss')
@@ -405,7 +411,7 @@ class Pipeline():
 
 	def loss(self, real, pred, position):
 		"""
-		TODO: normalize this shit instead of sum
+		The loss is normalized iterated in each batch; divided by the masked sequence length in each batch
 
 		:param real:
 		:param pred:
@@ -417,17 +423,21 @@ class Pipeline():
 		                     , position, dtype=tf.dtypes.bool)
 		mask = tf.math.logical_and(mask, mask_pos)
 
-		# # convert real to one-hot encoding... this is to apply label smoothing
-		# real_one_hot = tf.one_hot(real, self.target_vocab_size)
-		#
-		# loss_ = self.loss_object(real_one_hot, pred)  # loss
-
-		loss_ = self.loss_object_sparse(real, pred)
+		if LABEL_SMOOTHING_EPS is None:
+			loss_ = self.loss_object_sparse(real, pred)
+		else:
+			# convert real to one-hot encoding... this is to apply label smoothing
+			real_one_hot = tf.one_hot(real, self.target_vocab_size)
+			loss_ = self.loss_object_(real_one_hot, pred)  # loss
 
 		mask = tf.cast(mask, dtype=loss_.dtype)
 		loss_ *= mask
 
-		return tf.reduce_sum(loss_)  # sum will make the difference higher thus it will learn the difference better with the cost of longer training time
+		# normalize the loss_ for each batch
+		count_one_mask = tf.math.count_nonzero(mask, -1, keepdims=True, dtype=tf.float32)
+		loss_ /= count_one_mask
+
+		return tf.reduce_sum(loss_) * tf.math.sqrt(tf.cast(d_model, tf.float32))  # sum will make the difference higher thus it will learn the difference better with the cost of longer training time
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument

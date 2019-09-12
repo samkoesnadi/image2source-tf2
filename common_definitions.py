@@ -23,8 +23,8 @@ LOGGING_LEVEL = logging.DEBUG
 TOP_K = 20000  # this is for tokenizer
 
 # maximum sequence length for dataset and transformer at evaluation time
-MAX_SEQ_LEN_DATASET = 1060
-MAX_SEQ_LEN = 1060
+MAX_SEQ_LEN_DATASET = 1053
+MAX_SEQ_LEN = 1053
 
 ACTIVATION = tf.nn.leaky_relu
 KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
@@ -36,14 +36,15 @@ BATCH_SIZE = 10
 BUFFER_SIZE = 1000  # this is important for shuffling
 EPOCHS = 1000
 DROPOUT_RATE = 0.1
-# LABEL_SMOOTHING_EPS = 0.1
+REGULARIZER_RATE = 0.01
+LABEL_SMOOTHING_EPS = 0.1
 MIN_EPOCH_TO_BREAK = 10
 GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
 DEFAULT_LEARNING_RATE = 1e-3
 WARM_UP_STEPS = 2000  # for scheduler
 # LEARNING_RATE_DECAY = (DEFAULT_LEARNING_RATE - 4e-4) / EPOCHS / 100
 
-IS_TRAINING = False
+IS_TRAINING = True
 IS_TEST_IMAGE = False
 TRANSFER_LEARN_AUTOENCODER = True
 
@@ -72,7 +73,7 @@ AUTOENCODER_CHECKPOINT_PATH = "./checkpoints/train/autoencoder"
 # TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning"  # this has good result!
 
 # Harder parser
-TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning_harder"
+TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning_harder_bottleneck"
 
 
 ### Set Hyperparameters for Transformer

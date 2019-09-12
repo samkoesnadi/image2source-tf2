@@ -702,7 +702,7 @@ if __name__ == "__main__":
 				tf.summary.scalar('accuracy', master.train_accuracy.result(), step=epoch)
 
 			should_break = master.smart_ckpt_saver(epoch + 1,
-			                                            master.train_accuracy.result())  # this will be better if we use validation
+			                                            - master.train_loss.result())  # this will be better if we use validation
 			if should_break == -1:
 				start_epoch = epoch
 				break

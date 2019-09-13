@@ -649,14 +649,14 @@ if __name__ == "__main__":
 	additional_info = load_additional_info(ADDITIONAL_FILENAME)
 	key_epoch = "transformer_epoch_"+os.path.basename(TRANSFORMER_CHECKPOINT_PATH)  # the key name in additional info for prev epoch
 
-	# tensorboard support
-	current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
-	train_log_dir = 'logs/transformer/' + current_time + '/train'
-	train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-
 	master = Pipeline(TOKENIZER_FILENAME, ADDITIONAL_FILENAME, TRANSFORMER_CHECKPOINT_PATH)  # master pipeline
 
 	if IS_TRAINING:
+		# tensorboard support
+		current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+		train_log_dir = 'logs/transformer/' + current_time + '/train'
+		train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+		
 		### Train loop
 		start_epoch = 0
 		if master.ckpt_manager.latest_checkpoint:

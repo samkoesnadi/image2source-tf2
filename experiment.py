@@ -32,7 +32,7 @@ print(list(map(lambda i: tokenizer.index_word[i], train_seqs[0])))
 print(tokenizer.sequences_to_texts(train_seqs))
 print(decode_2_html(tokenizer.sequences_to_texts(train_seqs)[0]))
 
-temp_learning_rate_schedule = CustomSchedule(d_model, WARM_UP_STEPS, 1)
+temp_learning_rate_schedule = CustomSchedule(d_model, WARM_UP_STEPS)
 
 plt.plot(temp_learning_rate_schedule(tf.range(40000, dtype=tf.float32)))
 plt.ylabel("Learning Rate")

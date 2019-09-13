@@ -1,5 +1,6 @@
 import logging
 import tensorflow as tf
+LABEL_SMOOTHING_EPS = None
 
 # You'll generate plots of attention in order to see which parts of an image
 # our model focuses on during captioning
@@ -37,11 +38,11 @@ BUFFER_SIZE = 1000  # this is important for shuffling
 EPOCHS = 1000
 DROPOUT_RATE = 0.1
 REGULARIZER_RATE = 0.01
-LABEL_SMOOTHING_EPS = 0.1
+# LABEL_SMOOTHING_EPS = 0.1
 MIN_EPOCH_TO_BREAK = 10
 GAP_OF_DEAD_EPOCH = 25  # gap before it is going to kill the no more training network
 DEFAULT_LEARNING_RATE = 1e-3
-WARM_UP_STEPS = 2000  # for scheduler
+WARM_UP_STEPS = 4000  # for scheduler
 # LEARNING_RATE_DECAY = (DEFAULT_LEARNING_RATE - 4e-4) / EPOCHS / 100
 
 IS_TRAINING = True

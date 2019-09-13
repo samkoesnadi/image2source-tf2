@@ -379,9 +379,8 @@ class Pipeline():
 		self.preprocessing_model = tf.keras.Model(self.transformer.preprocessing_base_input, self.transformer.preprocessing)
 
 		# define optimizer and loss
-		learning_rate = CustomSchedule(d_model, WARM_UP_STEPS, 1.7)  # this parameter seems to work. It is however opened to be changed
+		learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
-		                                     # epsilon=1e-9)
 		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
 
 		if LABEL_SMOOTHING_EPS is None:
@@ -679,14 +678,14 @@ if __name__ == "__main__":
 				master.train_step(img, sxn_token, decode_pos)
 
 				if batch % 100 == 0:
-					print('Epoch {} Batch {} Loss {:.4f} Accuracy {:.4f}'.format(
+					print('Epoch {} Batch {} Loss {:e} Accuracy {:e}'.format(
 						epoch + 1, batch, master.train_loss.result(), master.train_accuracy.result()))
 
 				total_batch_in_dataset = batch
 
 			total_batch_in_dataset += 1
 
-			print('Epoch {}: Total batch {} Loss {:f} Accuracy {:f}'.format(epoch + 1, total_batch_in_dataset,
+			print('Epoch {}: Total batch {} Loss {:e} Accuracy {:e}'.format(epoch + 1, total_batch_in_dataset,
 			                                                    master.train_loss.result(),
 			                                                    master.train_accuracy.result()))
 

@@ -252,9 +252,14 @@ class Encoder(tf.keras.layers.Layer):
 		self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
 		                   for _ in range(num_layers)]
 
+		self.pre_dropout1 = tf.keras.layers.Dropout(rate)
+
 		self.dropout1 = tf.keras.layers.Dropout(rate)
 
 	def call(self, x, training, mask):
+
+		x = self.pre_dropout1(x, training=training)  # dropout here
+
 		# encode embedding and position
 		x = self.bottleneck(x)
 		x = self.reshape(x)

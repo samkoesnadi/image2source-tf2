@@ -438,7 +438,7 @@ class Pipeline():
 		# count_one_mask = tf.math.count_nonzero(mask, -1, keepdims=True, dtype=tf.float32)
 		# loss_ /= count_one_mask
 
-		return tf.reduce_mean(loss_)
+		return tf.reduce_sum(loss_)
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument

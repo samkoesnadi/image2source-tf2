@@ -252,14 +252,9 @@ class Encoder(tf.keras.layers.Layer):
 		self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
 		                   for _ in range(num_layers)]
 
-		self.pre_dropout1 = tf.keras.layers.Dropout(rate)
-
 		self.dropout1 = tf.keras.layers.Dropout(rate)
 
 	def call(self, x, training, mask):
-
-		x = self.pre_dropout1(x, training=training)  # dropout here
-
 		# encode embedding and position
 		x = self.bottleneck(x)
 		x = self.reshape(x)
@@ -441,7 +436,7 @@ class Pipeline():
 		count_one_mask = tf.math.count_nonzero(mask, -1, keepdims=True, dtype=tf.float32)
 		loss_ /= count_one_mask
 
-		return tf.reduce_sum(loss_) * tf.math.sqrt(tf.cast(d_model, tf.float32))  # sum will make the difference higher thus it will learn the difference better with the cost of longer training time
+		return tf.reduce_sum(loss_)  # sum will make the difference higher thus it will learn the difference better with the cost of longer training time, (number of batch might influence performance)
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument
@@ -485,6 +480,9 @@ class Pipeline():
 		encoder_input = self.preprocessing_model(img_expand_dims)  # preprocessing_model needs to come in batch
 		encoder_output = self.transformer.encoder(encoder_input, False, None)  # (batch_size, inp_seq_len, d_model)
 
+		# For beam search, tile encoder_output
+		encoder_output = tf.tile(encoder_output, tf.constant([BEAM_SEARCH_N, 1, 1]))
+
 		if plot_layer:
 			# generate plot of encoder_input
 			# store the figures
@@ -493,33 +491,57 @@ class Pipeline():
 
 		# as the target is english, the first word to the transformer should be the
 		# english start token.
-		decoder_input = [start_token]
-		output = tf.expand_dims(decoder_input, 0)
+		beam_output = tf.expand_dims([start_token] * BEAM_SEARCH_N, -1)
+		beam_prob = tf.expand_dims([1] * BEAM_SEARCH_N, -1)
+		beam_result = None
 
 		for i in range(MAX_SEQ_LEN + self.max_position):
-			look_ahead_mask = create_look_ahead_mask(tf.shape(output)[1])
+			look_ahead_mask = create_look_ahead_mask(tf.shape(beam_output)[1])
 
 			# predictions.shape == (batch_size, seq_len, vocab_size)
 			predictions, attention_weights = self.transformer(encoder_output,
-			                                                  output,
+			                                                  beam_output,
 			                                                  False,
 			                                                  look_ahead_mask,
 			                                                  None)
 
 			# select the last word from the seq_len dimension
-			predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
+			predictions = predictions[:, -1:, :]  # (BEAM_SEARCH_N, 1, vocab_size)
+			predictions = tf.reshape(predictions, [BEAM_SEARCH_N, self.target_vocab_size])
 
-			predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)  # greedily take maximum prediction
+			# candidates and put it to beam_output
+			top_k_candidates = tf.math.top_k(predictions, BEAM_SEARCH_N)
+			candidates = top_k_candidates[0] * tf.cast(beam_prob, tf.float32)
+			candidates = tf.reshape(candidates, [-1])
+			candidates_index = top_k_candidates[1]
+
+			top_k_beams = tf.math.top_k(candidates, BEAM_SEARCH_N)
+			top_k_beams_index = top_k_beams[1]
+			i_beams = top_k_beams_index // self.target_vocab_size
+			j_beams = top_k_beams_index - i_beams * self.target_vocab_size
+			ij = tf.stack((i_beams, j_beams), axis=-1)
+
+			a_beam = tf.gather_nd(beam_output, tf.expand_dims(ij[:, 0], axis=-1))
+			b_beam = tf.gather_nd(candidates_index, tf.expand_dims(ij, axis=1))
+
+			beam_output = tf.concat([a_beam, b_beam], axis=-1)
+
+			# update beam probabilities
+			beam_prob_pre = top_k_beams[0]
+			beam_prob = tf.expand_dims(beam_prob_pre, axis=-1)
+
+			predicted_beam_id = tf.cast(tf.argmax(beam_prob, axis=0)[0], tf.int32)  # greedily take maximum prediction
+			beam_result = beam_output[predicted_beam_id]
 
 			# return the result if the predicted_id is equal to the end token
-			if tf.squeeze(predicted_id) == end_token:
-				return tf.squeeze(output, axis=0), attention_weights
+			if beam_result[-1] == end_token:
+				return beam_result[:-1], attention_weights
 
-			# concatentate the predicted_id to the output which is given to the decoder
-			# as its input.
-			output = tf.concat([output, predicted_id], axis=-1)
-
-		return tf.squeeze(output, axis=0), attention_weights
+		# return the result if the predicted_id is equal to the end token
+		if beam_result[-1] == end_token:
+			return beam_result[:-1], attention_weights
+		else:
+			return beam_result, attention_weights
 
 
 	def plot_attention_weights(self, attention, input, sxn_token, layer, filename, max_len=10):
@@ -656,7 +678,7 @@ if __name__ == "__main__":
 		current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
 		train_log_dir = 'logs/transformer/' + current_time + '/train'
 		train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-		
+
 		### Train loop
 		start_epoch = 0
 		if master.ckpt_manager.latest_checkpoint:

@@ -22,23 +22,23 @@ a = tf.math.top_k([[1,2,3, 4, 5, 6, 7, 8, 9],[4,5,6,10,11,12,13,14,15]], BEAM_SE
 print(a)
 
 
-# # experiment with tokenizing SXN
-# with open("html_SXN_parser/generated_example.html", "r") as f:
-# 	html = f.read()
-# sxn = encode_2_sxn(html)
-# print(sxn)
-#
-# tokenizer = tf.keras.preprocessing.text.Tokenizer(TOP_K, filters='', split=' ', oov_token="<unk>")
-# tokenizer.fit_on_texts([sxn])
-# train_seqs = tokenizer.texts_to_sequences([sxn])
-# print(train_seqs)
-# print(list(map(lambda i: tokenizer.index_word[i], train_seqs[0])))
-# print(tokenizer.sequences_to_texts(train_seqs))
-# print(decode_2_html(tokenizer.sequences_to_texts(train_seqs)[0]))
-#
-# temp_learning_rate_schedule = CustomSchedule(d_model, WARM_UP_STEPS)
-#
-# plt.plot(temp_learning_rate_schedule(tf.range(40000, dtype=tf.float32)))
-# plt.ylabel("Learning Rate")
-# plt.xlabel("Train Step")
-# plt.show()
+# experiment with tokenizing SXN
+with open("html_SXN_parser/generated_example.html", "r") as f:
+	html = f.read()
+sxn = encode_2_sxn(html)
+print(sxn)
+
+tokenizer = tf.keras.preprocessing.text.Tokenizer(TOP_K, filters='', split=' ', oov_token="<unk>")
+tokenizer.fit_on_texts([sxn])
+train_seqs = tokenizer.texts_to_sequences([sxn])
+print(train_seqs)
+print(list(map(lambda i: tokenizer.index_word[i], train_seqs[0])))
+print(tokenizer.sequences_to_texts(train_seqs))
+print(decode_2_html(tokenizer.sequences_to_texts(train_seqs)[0]))
+
+temp_learning_rate_schedule = CustomSchedule(d_model, WARM_UP_STEPS)
+
+plt.plot(temp_learning_rate_schedule(tf.range(40000, dtype=tf.float32)))
+plt.ylabel("Learning Rate")
+plt.xlabel("Train Step")
+plt.show()

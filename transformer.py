@@ -379,7 +379,7 @@ class Pipeline():
 		self.preprocessing_model = tf.keras.Model(self.transformer.preprocessing_base_input, self.transformer.preprocessing)
 
 		# define optimizer and loss
-		learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
+		learning_rate = CustomSchedule(d_model, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
 		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
 		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
 
@@ -398,7 +398,7 @@ class Pipeline():
 		self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
 		                           optimizer=self.optimizer)
 
-		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=5)
+		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=30)
 
 		self.smart_ckpt_saver = SmartCheckpointSaver(self.ckpt_manager)
 
@@ -418,9 +418,11 @@ class Pipeline():
 		:return:
 		"""
 		mask = tf.math.logical_not(tf.math.equal(real, 0))
-		mask_pos = tf.map_fn(lambda pos: tf.ones(MAX_SEQ_LEN_DATASET - 1, dtype=tf.dtypes.bool) if pos == 0 else tf.cast(tf.one_hot(MAX_SEQ_LEN_DATASET - 2, MAX_SEQ_LEN_DATASET - 1) , dtype=tf.dtypes.bool)
-		                     , position, dtype=tf.dtypes.bool)
-		mask = tf.math.logical_and(mask, mask_pos)
+
+		if self.max_position != 0:
+			mask_pos = tf.map_fn(lambda pos: tf.ones(MAX_SEQ_LEN_DATASET - 1, dtype=tf.dtypes.bool) if pos == 0 else tf.cast(tf.one_hot(MAX_SEQ_LEN_DATASET - 2, MAX_SEQ_LEN_DATASET - 1) , dtype=tf.dtypes.bool)
+			                     , position, dtype=tf.dtypes.bool)
+			mask = tf.math.logical_and(mask, mask_pos)
 
 		if LABEL_SMOOTHING_EPS is None:
 			loss_ = self.loss_object_sparse(real, pred)
@@ -432,11 +434,11 @@ class Pipeline():
 		mask = tf.cast(mask, dtype=loss_.dtype)
 		loss_ *= mask
 
-		# normalize the loss_ for each batch
-		count_one_mask = tf.math.count_nonzero(mask, -1, keepdims=True, dtype=tf.float32)
-		loss_ /= count_one_mask
+		# # normalize the loss_ for each batch
+		# count_one_mask = tf.math.count_nonzero(mask, -1, keepdims=True, dtype=tf.float32)
+		# loss_ /= count_one_mask
 
-		return tf.reduce_sum(loss_)  # sum will make the difference higher thus it will learn the difference better with the cost of longer training time, (number of batch might influence performance)
+		return tf.reduce_mean(loss_)
 
 	# The @tf.function trace-compiles train_step into a TF graph for faster
 	# execution. The function specializes to the precise shape of the argument

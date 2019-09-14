@@ -657,13 +657,16 @@ class Pipeline():
 	def translate(self, img):
 		result, attention_weights = master.evaluate(img)
 
-		result = result.numpy()  # convert to numpy
-		result = result[1:]  # [1:] key is to remove the <start> token
+		try:
+			result = result.numpy()  # convert to numpy
+			result = result[1:]  # [1:] key is to remove the <start> token
 
-		predicted_sxn = master.tokenizer.sequences_to_texts([result])[0]  # translate_from_dataset to predicted_sxn
-		predicted_html = decode_2_html(predicted_sxn)  # translate_from_dataset to predicted html
+			predicted_sxn = master.tokenizer.sequences_to_texts([result])[0]  # translate_from_dataset to predicted_sxn
+			predicted_html = decode_2_html(predicted_sxn)  # translate_from_dataset to predicted html
 
-		return predicted_html
+			return predicted_html
+		except:
+			return "<html></html>"  # this means bad translation
 
 
 ### Main training loop

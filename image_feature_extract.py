@@ -61,7 +61,7 @@ class MobileNetV2_AutoEncoder():
 
 	def loss(self, target, pred):
 		# return weighted_loss(target, pred, tf.keras.losses.MeanSquaredError)
-		return tf.reduce_sum(tf.keras.losses.MeanSquaredError(reduction="none")(target, pred))  # sum instead of mean so the difference has higher value and not in the scope of decimal
+		return tf.reduce_mean(tf.keras.losses.MeanSquaredError(reduction="none")(target, pred))
 
 	def decoder_block(self, inp, filters_arr):
 

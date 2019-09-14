@@ -511,11 +511,15 @@ class Pipeline():
 			predictions = predictions[:, -1:, :]  # (BEAM_SEARCH_N, 1, vocab_size)
 			predictions = tf.reshape(predictions, [BEAM_SEARCH_N, self.target_vocab_size])
 
+			# TODO: check if this softmax is necessary
+			predictions = tf.nn.softmax(predictions)
+
 			# candidates and put it to beam_output
-			top_k_candidates = tf.math.top_k(predictions, BEAM_SEARCH_N)
-			candidates = top_k_candidates[0] * tf.cast(beam_prob, tf.float32)
+			candidates = predictions * tf.cast(beam_prob, tf.float32)
 			candidates = tf.reshape(candidates, [-1])
-			candidates_index = top_k_candidates[1]
+
+			candidates_index = tf.range(self.target_vocab_size)
+			candidates_index = tf.tile(tf.expand_dims(candidates_index, axis=0), [BEAM_SEARCH_N, 1])
 
 			top_k_beams = tf.math.top_k(candidates, BEAM_SEARCH_N)
 			top_k_beams_index = top_k_beams[1]

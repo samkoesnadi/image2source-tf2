@@ -21,8 +21,18 @@ class MobileNetV2_AutoEncoder():
 
 		self.hidden_layer = self.encoder.layers[-1].output
 
+		# Dense layer (intermediate because transformer has it)
+		intermediate = tf.keras.layers.Reshape((49, 1280))(self.hidden_layer)
+		intermediate = tf.keras.layers.Dense(d_model + (1280 - d_model) // 2, activation=ACTIVATION,
+		                      kernel_initializer=KERNEL_INITIALIZER)(intermediate)
+		intermediate = tf.keras.layers.Dense(d_model, activation=ACTIVATION,
+		                                       kernel_initializer=KERNEL_INITIALIZER)(intermediate)
+		intermediate = tf.keras.layers.Dense(1280, activation=ACTIVATION,
+		                      kernel_initializer=KERNEL_INITIALIZER)(intermediate)
+		intermediate = tf.keras.layers.Reshape((7, 7, 1280))(intermediate)
+
 		# Decoder
-		dec_hidden_4 = self.decoder_block(self.hidden_layer, [320, 160])
+		dec_hidden_4 = self.decoder_block(intermediate, [320, 160])
 
 		dec_hidden_3 = self.decoder_block(dec_hidden_4, [96, 64])
 
@@ -50,7 +60,7 @@ class MobileNetV2_AutoEncoder():
 
 		# set checkpoint
 		self.ckpt = tf.train.Checkpoint(model=self.model, optimizer=self.optimizer)
-		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=5)
+		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=30)
 
 		self.smart_ckpt_saver = SmartCheckpointSaver(self.ckpt_manager)
 
@@ -151,7 +161,7 @@ if __name__ == "__main__":
 		if autoencoder.ckpt_manager.latest_checkpoint:
 			start_epoch = additional_info["autoencoder_epoch"]
 
-		for epoch in range(start_epoch, EPOCHS):
+		for epoch in range(start_epoch, EPOCHS_AUTOENCODER):
 			start = time.time()
 
 			autoencoder.train_loss.reset_states()

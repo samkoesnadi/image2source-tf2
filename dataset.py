@@ -177,9 +177,9 @@ def get_all_datasets(filename):
 	_datasets = raw_dataset.map(_parse_function, num_parallel_calls=tf.data.experimental.AUTOTUNE)  # map the string to real data
 	_datasets = _datasets.map(convert_data, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
-	# split datasets to train_datasets, and test_dataset... right now just set 2 test_dataset
-	_test_dataset = _datasets.take(2)  # (2, ...)
-	_train_datasets = _datasets.skip(2)
+	# split datasets to train_datasets, and test_dataset... right now just set N_TEST_DATASET test_dataset
+	_test_dataset = _datasets.take(N_TEST_DATASET)  # (N_TEST_DATASET, ...)
+	_train_datasets = _datasets.skip(N_TEST_DATASET)
 
 	_train_datasets = _train_datasets.shuffle(BUFFER_SIZE).batch(BATCH_SIZE) # (:, :, ...)
 	_train_datasets = _train_datasets.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)

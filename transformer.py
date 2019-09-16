@@ -167,7 +167,7 @@ class EncoderLayer(tf.keras.layers.Layer):
 		self.mha = MultiHeadAttention(d_model, num_heads)
 
 		# Point wise feed forward network
-		self.ffn1 = tf.keras.layers.Dense(dff, activation="relu", kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
+		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION, kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
 		self.ffn2 = tf.keras.layers.Dense(d_model, kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
 
 		self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
@@ -198,7 +198,7 @@ class DecoderLayer(tf.keras.layers.Layer):
 		self.mha2 = MultiHeadAttention(d_model, num_heads)
 
 		# Point wise feed forward network
-		self.ffn1 = tf.keras.layers.Dense(dff, activation="relu",
+		self.ffn1 = tf.keras.layers.Dense(dff, activation=ACTIVATION,
 		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, dff)
 		self.ffn2 = tf.keras.layers.Dense(d_model,
 		                                  kernel_initializer=KERNEL_INITIALIZER)  # (batch_size, seq_len, d_model)
@@ -241,34 +241,31 @@ class Encoder(tf.keras.layers.Layer):
 		self.d_model = d_model
 		self.num_layers = num_layers
 
-		self.bottleneck = tf.keras.layers.Conv2D(d_model + (1280 - d_model) // 2, 1, activation=ACTIVATION,
-		                                         kernel_initializer=KERNEL_INITIALIZER)
-		self.reshape = tf.keras.layers.Reshape((49, d_model + (1280 - d_model) // 2))
+		self.intermediate_embedding = tf.keras.layers.Dense(d_model + (1280 - d_model) // 2, activation=ACTIVATION,
+		                      kernel_initializer=KERNEL_INITIALIZER)
+		self.reshape = tf.keras.layers.Reshape((49, 1280))
 		self.embedding = tf.keras.layers.Dense(d_model, activation=ACTIVATION,
-		                                       kernel_initializer=KERNEL_INITIALIZER,
-		                                       kernel_regularizer=tf.keras.regularizers.l2(REGULARIZER_RATE))
+		                                       kernel_initializer=KERNEL_INITIALIZER)
 		self.pos_encoding = positional_encoding(input_vocab_size, self.d_model)
 
 		self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
 		                   for _ in range(num_layers)]
 
 		self.dropout1 = tf.keras.layers.Dropout(rate)
+		self.dropout2 = tf.keras.layers.Dropout(rate)
 
 	def call(self, x, training, mask):
 		# encode embedding and position
-		x = self.bottleneck(x)
 		x = self.reshape(x)
+		x = self.intermediate_embedding(x)
 
-		seq_len = tf.shape(x)[1]  # define seq len from the shape of first dimension of x
+		x = self.dropout1(x, training=training)
 
 		x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
 
 		### I deleted batch normalization here because we need the information of color distribution here ###
 
-		x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
-		x += self.pos_encoding[:, :seq_len, :]
-
-		x = self.dropout1(x, training=training)
+		x = self.dropout2(x, training=training)
 
 		for i in range(self.num_layers):
 			x = self.enc_layers[i](x, training, mask)
@@ -338,11 +335,10 @@ class Transformer(tf.keras.Model):
 		self.decoder = Decoder(num_layers, d_model, num_heads, dff,
 		                       target_vocab_size, rate, max_position)
 
-		self.final_layer = tf.keras.layers.Dense(target_vocab_size, kernel_initializer=KERNEL_INITIALIZER, activation="linear")
+		self.final_layer = tf.keras.layers.Dense(target_vocab_size, kernel_initializer=KERNEL_INITIALIZER, activation="softmax")
 
 	def call(self, inp, tar, training, look_ahead_mask, decode_pos):
 		if training:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
-			inp = self.preprocessing_base(inp)
 			enc_output = self.encoder(inp, training, None)  # (batch_size, inp_seq_len, d_model)
 		else:  # this is to speed up inference time, so put the encoder preprocessed outside of the Transformer
 			enc_output = inp
@@ -384,8 +380,7 @@ class Pipeline():
 		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
 
 		if LABEL_SMOOTHING_EPS is None:
-			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True,
-			                                                                        reduction='none')
+			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(reduction='none')
 		else:
 			self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
 
@@ -452,8 +447,10 @@ class Pipeline():
 
 		_mask = create_masks(tar_inp)
 
+		inp = self.transformer.preprocessing_base(img)  # image feature extractor to (7, 7, 1280)
+
 		with tf.GradientTape() as tape:
-			predictions, _ = self.transformer(img, tar_inp,
+			predictions, _ = self.transformer(inp, tar_inp,
 			                             True,
 			                             _mask,
 			                             decode_pos)
@@ -736,8 +733,7 @@ if __name__ == "__main__":
 				tf.summary.scalar('loss', master.train_loss.result(), step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
 				tf.summary.scalar('accuracy', master.train_accuracy.result(), step=epoch)
 
-			should_break = master.smart_ckpt_saver(epoch + 1,
-			                                            - master.train_loss.result())  # this will be better if we use validation
+			should_break = master.smart_ckpt_saver(epoch + 1, master.train_accuracy.result())  # this will be better if we use validation
 			if should_break == -1:
 				start_epoch = epoch
 				break

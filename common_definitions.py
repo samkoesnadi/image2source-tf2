@@ -27,7 +27,7 @@ TOP_K = 20000  # this is for tokenizer
 MAX_SEQ_LEN_DATASET = 1053
 MAX_SEQ_LEN = 1053
 
-ACTIVATION = tf.nn.leaky_relu
+ACTIVATION = tf.nn.relu6
 KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
@@ -35,8 +35,10 @@ IMAGE_INPUT_SIZE = 224  # this to fit default criteria from MobileNetV2
 BATCH_SIZE_AUTOENCODER = 64
 BATCH_SIZE = 10
 BUFFER_SIZE = 1000  # this is important for shuffling
-EPOCHS = 200
+EPOCHS_AUTOENCODER = 500
+EPOCHS = 300
 BEAM_SEARCH_N = 3
+N_TEST_DATASET = 3
 DROPOUT_RATE = 0.1
 REGULARIZER_RATE = 0.01
 # LABEL_SMOOTHING_EPS = 0.1
@@ -62,20 +64,20 @@ ANNOTATIONS_PATH = "annotations.json"
 # ADDITIONAL_FILENAME = "datasets/pix2code_additional.json"
 
 # Harder parser
-TFRECORD_FILENAME = "datasets/pix2code_harder.tfrecord"
-TOKENIZER_FILENAME = "datasets/pix2code_tokenizer_harder.json"
-ADDITIONAL_FILENAME = "datasets/pix2code_additional_harder.json"
+TFRECORD_FILENAME = "datasets/pix2code_better_extractor.tfrecord"
+TOKENIZER_FILENAME = "datasets/pix2code_tokenizer_better_extractor.json"
+ADDITIONAL_FILENAME = "datasets/pix2code_additional_better_extractor.json"
 
-MOBILENETV2_WEIGHT_PATH = "model_weights/pix2code_MobileNetV2.h5"  # autoencoder trained on pix2code datasets
-TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer.h5"  # transformer trained on pix2code datasets
+MOBILENETV2_WEIGHT_PATH = "model_weights/pix2code_MobileNetV2_better_extractor.h5"  # autoencoder trained on pix2code datasets
+TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer_better_extractor.h5"  # transformer trained on pix2code datasets
 
-AUTOENCODER_CHECKPOINT_PATH = "./checkpoints/train/autoencoder"
+AUTOENCODER_CHECKPOINT_PATH = "./checkpoints/train/autoencoder_better_extractor"
 
 # Normal parser
 # TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning"  # this has good result!
 
 # Harder parser
-TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning_harder_bottleneck"
+TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_better_extractor"
 
 
 ### Set Hyperparameters for Transformer

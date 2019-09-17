@@ -6,7 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import tensorflow as tf
-from common_definitions import EPOCHS, MIN_EPOCH_TO_BREAK, GAP_OF_DEAD_EPOCH
+from common_definitions import EPOCHS, MIN_EPOCH_TO_BREAK, GAP_OF_DEAD_EPOCH, SIGMOID
+
 
 def save_fig_png(input_arr, filename):
 	"""
@@ -100,7 +101,7 @@ class SmartCheckpointSaver:
 			self.max_acc_epoch = curr_epoch
 			return 1
 		else:
-			epoch_min = min(EPOCHS, max(MIN_EPOCH_TO_BREAK, int(self.max_acc_epoch * 1.5)), int(self.max_acc_epoch + GAP_OF_DEAD_EPOCH))  # min epoch to break is 10
+			epoch_min = min(EPOCHS, max(MIN_EPOCH_TO_BREAK, int(self.max_acc_epoch * 2.)), int(self.max_acc_epoch + GAP_OF_DEAD_EPOCH))  # min epoch to break is 10
 
 			if epoch_min <= curr_epoch:
 				return -1
@@ -113,7 +114,11 @@ class FocalLoss:
 		self.gamma = gamma
 
 	def __call__(self, target_tensor, prediction_tensor):
-		sigmoid_p = tf.nn.sigmoid(prediction_tensor)
+		if SIGMOID:
+			sigmoid_p = tf.nn.sigmoid(prediction_tensor)
+		else:
+			sigmoid_p = tf.nn.softmax(prediction_tensor)
+
 		zeros = tf.zeros_like(sigmoid_p, dtype=sigmoid_p.dtype)
 
 		# For poitive prediction, only need consider front part loss, back part is 0;

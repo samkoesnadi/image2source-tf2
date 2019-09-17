@@ -33,7 +33,7 @@ KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 ### Set default parameters for all model
 IMAGE_INPUT_SIZE = 224  # this to fit default criteria from MobileNetV2
 BATCH_SIZE_AUTOENCODER = 64
-BATCH_SIZE = 10
+BATCH_SIZE = 3
 BUFFER_SIZE = 1000  # this is important for shuffling
 EPOCHS_AUTOENCODER = 500
 EPOCHS = 300
@@ -42,16 +42,19 @@ N_TEST_DATASET = 3
 DROPOUT_RATE = 0.1
 REGULARIZER_RATE = 0.01
 # LABEL_SMOOTHING_EPS = 0.1
-FOCAL_LOSS = True
+FOCAL_LOSS = False
+SIGMOID = False
 MIN_EPOCH_TO_BREAK = 40
 GAP_OF_DEAD_EPOCH = 50  # gap before it is going to kill the no more training network
 DEFAULT_LEARNING_RATE = 1e-3
-WARM_UP_STEPS = 4000  # for scheduler
+WARM_UP_STEPS = 2000  # for scheduler
 # LEARNING_RATE_DECAY = (DEFAULT_LEARNING_RATE - 4e-4) / EPOCHS / 100
 
 # Focal loss parameter
-ALPHA_BALANCED = 0.25
-GAMMA_FOCAL = 2.
+ALPHA_BALANCED = 0.5
+GAMMA_FOCAL = 2.0
+# ALPHA_BALANCED = 0.25
+# GAMMA_FOCAL = 2.0
 
 
 IS_TRAINING = True

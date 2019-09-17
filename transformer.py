@@ -253,19 +253,25 @@ class Encoder(tf.keras.layers.Layer):
 
 		self.dropout1 = tf.keras.layers.Dropout(rate)
 		self.dropout2 = tf.keras.layers.Dropout(rate)
+		self.dropout3 = tf.keras.layers.Dropout(rate)
+
+		self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 
 	def call(self, x, training, mask):
 		# encode embedding and position
 		x = self.reshape(x)
-		x = self.intermediate_embedding(x)
+
+		seq_len = tf.shape(x)[1]  # define seq len from the shape of first dimension of x
 
 		x = self.dropout1(x, training=training)
-
-		x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
-
-		### I deleted batch normalization here because we need the information of color distribution here ###
+		x = self.intermediate_embedding(x)
 
 		x = self.dropout2(x, training=training)
+		x = self.embedding(x)  # (batch_size, input_seq_len, d_model)
+		x = self.layernorm1(x)
+
+		x += self.pos_encoding[:, :seq_len, :]
+		x = self.dropout3(x, training=training)
 
 		for i in range(self.num_layers):
 			x = self.enc_layers[i](x, training, mask)
@@ -325,7 +331,7 @@ class Transformer(tf.keras.Model):
 		self.decoder = Decoder(num_layers, d_model, num_heads, dff,
 		                       target_vocab_size, rate, max_position)
 
-		self.final_layer = tf.keras.layers.Dense(target_vocab_size, kernel_initializer=KERNEL_INITIALIZER, activation="linear")
+		self.final_layer = tf.keras.layers.Dense(target_vocab_size, activation="linear")
 
 	def call(self, inp, tar, training, look_ahead_mask, decode_pos):
 		if training:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
@@ -368,7 +374,6 @@ class Pipeline():
 		self.preprocessing_base_input = self.preprocessing_base.input
 
 		# network
-		self.preprocessing_base_first_hidden_layer = self.preprocessing_base.layers[0].output
 		self.preprocessing = self.preprocessing_base.layers[-1].output
 
 
@@ -376,14 +381,14 @@ class Pipeline():
 		self.preprocessing_model = tf.keras.Model(self.preprocessing_base_input, self.preprocessing)
 
 		# define optimizer and loss
-		# learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
-		self.optimizer = tf.keras.optimizers.Adam(DEFAULT_LEARNING_RATE, beta_1=0.9, beta_2=0.98,
-		                                     epsilon=1e-9)
+		learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
+		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
+		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)
 
-		if FOCAL_LOSS == False:
+		if not FOCAL_LOSS:
 			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 		else:
-			# self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
+			# self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
 			self.loss_object_ = FocalLoss(alpha=ALPHA_BALANCED, gamma=GAMMA_FOCAL)
 
 		# define train loss and accuracy
@@ -404,7 +409,7 @@ class Pipeline():
 			print('Latest checkpoint restored!!')
 
 
-	def loss(self, real, pred, position):
+	def loss(self, real, pred, position, mask):
 		"""
 		The loss is normalized iterated in each batch; divided by the masked sequence length in each batch
 
@@ -413,14 +418,12 @@ class Pipeline():
 		:param position: if position > 0, then mask all loss except the last one (make sure that it is not padding)
 		:return:
 		"""
-		mask = tf.math.logical_not(tf.math.equal(real, 0))
-
 		if self.max_position != 0:
 			mask_pos = tf.map_fn(lambda pos: tf.ones(MAX_SEQ_LEN_DATASET - 1, dtype=tf.dtypes.bool) if pos == 0 else tf.cast(tf.one_hot(MAX_SEQ_LEN_DATASET - 2, MAX_SEQ_LEN_DATASET - 1) , dtype=tf.dtypes.bool)
 			                     , position, dtype=tf.dtypes.bool)
 			mask = tf.math.logical_and(mask, mask_pos)
 
-		if FOCAL_LOSS == False:
+		if not FOCAL_LOSS:
 			loss_ = self.loss_object_sparse(real, pred)
 		else:
 			# FOCAL LOSS
@@ -456,20 +459,22 @@ class Pipeline():
 
 		_mask = create_masks(tar_inp)
 
-		inp = self.preprocessing_base(img)  # image feature extractor to (7, 7, 1280)
+		mask = tf.math.logical_not(tf.math.equal(tar_real, 0))
+
+		inp = self.preprocessing_base(img)  # preprocess the image
 
 		with tf.GradientTape() as tape:
 			predictions, _ = self.transformer(inp, tar_inp,
 			                             True,
 			                             _mask,
 			                             decode_pos)
-			loss = self.loss(tar_real, predictions, decode_pos)
+			loss = self.loss(tar_real, predictions, decode_pos, mask)
 
 		gradients = tape.gradient(loss, self.transformer.trainable_variables)
 		self.optimizer.apply_gradients(zip(gradients, self.transformer.trainable_variables))
 
 		self.train_loss(loss)
-		self.train_accuracy(tar_real, predictions)
+		self.train_accuracy(tar_real, predictions, mask)
 
 
 	def evaluate(self, img, plot_layer=False):
@@ -630,38 +635,42 @@ class Pipeline():
 		:return:
 		"""
 
-		img = test_data[0]  # (height, width, 3)
-		target = test_data[1].numpy()
-		position = test_data[2].numpy()
+		try:
+			img = test_data[0]  # (height, width, 3)
+			target = test_data[1].numpy()
+			position = test_data[2].numpy()
 
-		if LOGGING_LEVEL == logging.DEBUG: start_time = time.time()
-		result, attention_weights = self.evaluate(img)
-		if LOGGING_LEVEL == logging.DEBUG: end_time = time.time()
+			if LOGGING_LEVEL == logging.DEBUG: start_time = time.time()
+			result, attention_weights = self.evaluate(img)
+			if LOGGING_LEVEL == logging.DEBUG: end_time = time.time()
 
-		result = result.numpy()  # convert to numpy
-		result = result[1:]  # [1:] key is to remove the <start> token
+			result = result.numpy()  # convert to numpy
+			result = result[1:]  # [1:] key is to remove the <start> token
 
-		predicted_sxn = self.tokenizer.sequences_to_texts([result])[0]  # translate_from_dataset to predicted_sxn
-		predicted_html = decode_2_html(predicted_sxn)  # translate_from_dataset to predicted html
+			predicted_sxn = self.tokenizer.sequences_to_texts([result])[0]  # translate_from_dataset to predicted_sxn
+			predicted_html = decode_2_html(predicted_sxn)  # translate_from_dataset to predicted html
 
-		if LOGGING_LEVEL == logging.DEBUG:
-			full_end_time = time.time()
+			if LOGGING_LEVEL == logging.DEBUG:
+				full_end_time = time.time()
 
-			if plot:
-				self.plot_attention_weights(attention_weights, [i for i in range(49)], result, plot,
-				                            "layers_figure/transformer/last_attention_weights.png")
-				print("Plot attention weight is generated.")
+				if plot:
+					self.plot_attention_weights(attention_weights, [i for i in range(49)], result, plot,
+					                            "layers_figure/transformer/last_attention_weights.png")
+					print("Plot attention weight is generated.")
 
-			accuracy = self.calculate_accuracy(target, result, position)  # print accuracy score
-			if accuracy >= 0:
-				print("Accuracy score: {}".format(accuracy))  # print accuracy score of both the sequence
-			else:
-				print("Result size is smaler than target")
+				accuracy = self.calculate_accuracy(target, result, position)  # print accuracy score
+				if accuracy >= 0:
+					print("Accuracy score: {}".format(accuracy))  # print accuracy score of both the sequence
+				else:
+					print("Result size is smaler than target")
 
-			print("Time spent inference of network: {}".format(end_time - start_time))
-			print("Time spent translating: {}".format(full_end_time - start_time))
+				print("Time spent inference of network: {}".format(end_time - start_time))
+				print("Time spent translating: {}".format(full_end_time - start_time))
 
-		return predicted_html
+			return predicted_html
+
+		except:
+			return "<html></html>"  # this means bad translation
 
 
 	def translate(self, img):
@@ -719,7 +728,7 @@ if __name__ == "__main__":
 			for (batch, (img, sxn_token, decode_pos)) in enumerate(train_datasets):
 				master.train_step(img, sxn_token, decode_pos)
 
-				if batch % 100 == 0:
+				if batch % 200 == 0:
 					print('Epoch {} Batch {} Loss {:e} Accuracy {:e}'.format(
 						epoch + 1, batch, master.train_loss.result(), master.train_accuracy.result()))
 

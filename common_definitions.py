@@ -1,6 +1,6 @@
 import logging
 import tensorflow as tf
-LABEL_SMOOTHING_EPS = None
+FOCAL_LOSS = None
 
 # You'll generate plots of attention in order to see which parts of an image
 # our model focuses on during captioning
@@ -42,15 +42,21 @@ N_TEST_DATASET = 3
 DROPOUT_RATE = 0.1
 REGULARIZER_RATE = 0.01
 # LABEL_SMOOTHING_EPS = 0.1
+FOCAL_LOSS = True
 MIN_EPOCH_TO_BREAK = 40
 GAP_OF_DEAD_EPOCH = 50  # gap before it is going to kill the no more training network
 DEFAULT_LEARNING_RATE = 1e-3
 WARM_UP_STEPS = 4000  # for scheduler
 # LEARNING_RATE_DECAY = (DEFAULT_LEARNING_RATE - 4e-4) / EPOCHS / 100
 
+# Focal loss parameter
+ALPHA_BALANCED = 0.25
+GAMMA_FOCAL = 2.
+
+
 IS_TRAINING = True
 IS_TEST_IMAGE = False
-TRANSFER_LEARN_AUTOENCODER = True
+TRANSFER_LEARN_AUTOENCODER = True  # this better not be changed unless you know what you are doing, since transformer does not train on image feature extractor anymore
 
 USE_GPU = True
 

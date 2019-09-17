@@ -105,3 +105,25 @@ class SmartCheckpointSaver:
 			if epoch_min <= curr_epoch:
 				return -1
 		return 0
+
+
+class FocalLoss:
+	def __init__(self, alpha=0.25, gamma=2):
+		self.alpha = alpha
+		self.gamma = gamma
+
+	def __call__(self, target_tensor, prediction_tensor):
+		sigmoid_p = tf.nn.sigmoid(prediction_tensor)
+		zeros = tf.zeros_like(sigmoid_p, dtype=sigmoid_p.dtype)
+
+		# For poitive prediction, only need consider front part loss, back part is 0;
+		# target_tensor > zeros <=> z=1, so poitive coefficient = z - p.
+		pos_p_sub = tf.where(target_tensor > zeros, target_tensor - sigmoid_p, zeros)
+
+		# For negative prediction, only need consider back part loss, front part is 0;
+		# target_tensor > zeros <=> z=1, so negative coefficient = 0.
+		neg_p_sub = tf.where(target_tensor > zeros, zeros, sigmoid_p)
+		per_entry_cross_ent = - self.alpha * (pos_p_sub ** self.gamma) * tf.math.log(tf.clip_by_value(sigmoid_p, 1e-9, 1.0)) \
+		                      - (1 - self.alpha) * (neg_p_sub ** self.gamma) * tf.math.log(
+			tf.clip_by_value(1.0 - sigmoid_p, 1e-9, 1.0))
+		return tf.reduce_sum(per_entry_cross_ent, axis=-1)

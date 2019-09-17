@@ -319,23 +319,13 @@ class Transformer(tf.keras.Model):
 	             target_vocab_size, rate=0.1, max_position=0):
 		super(Transformer, self).__init__()
 
-		# preprocessing base model
-		self.preprocessing_base = tf.keras.applications.mobilenet_v2.MobileNetV2(include_top=False, weights=None)  # preprocessing with MobileNet V2
-
-		# input
-		self.preprocessing_base_input = self.preprocessing_base.input
-
-		# network
-		self.preprocessing_base_first_hidden_layer = self.preprocessing_base.layers[0].output
-		self.preprocessing = self.preprocessing_base.layers[-1].output
-
 		self.encoder = Encoder(num_layers, d_model, num_heads, dff,
 		                       input_vocab_size, rate)
 
 		self.decoder = Decoder(num_layers, d_model, num_heads, dff,
 		                       target_vocab_size, rate, max_position)
 
-		self.final_layer = tf.keras.layers.Dense(target_vocab_size, kernel_initializer=KERNEL_INITIALIZER, activation="softmax")
+		self.final_layer = tf.keras.layers.Dense(target_vocab_size, kernel_initializer=KERNEL_INITIALIZER, activation="linear")
 
 	def call(self, inp, tar, training, look_ahead_mask, decode_pos):
 		if training:  # IMPORTANT: if training, then preprocess the image multiple time (because of the sequence length), otherwise please preprocess the image before calling this Transformer model
@@ -371,19 +361,30 @@ class Pipeline():
 		self.transformer = Transformer(num_layers, d_model, num_heads, dff,
 		                          input_vocab_size, self.target_vocab_size, DROPOUT_RATE, self.max_position)
 
+		# preprocessing base model
+		self.preprocessing_base = tf.keras.applications.mobilenet_v2.MobileNetV2(include_top=False, weights=None)  # preprocessing with MobileNet V2
+
+		# input
+		self.preprocessing_base_input = self.preprocessing_base.input
+
+		# network
+		self.preprocessing_base_first_hidden_layer = self.preprocessing_base.layers[0].output
+		self.preprocessing = self.preprocessing_base.layers[-1].output
+
+
 		# model
-		self.preprocessing_model = tf.keras.Model(self.transformer.preprocessing_base_input, self.transformer.preprocessing)
+		self.preprocessing_model = tf.keras.Model(self.preprocessing_base_input, self.preprocessing)
 
 		# define optimizer and loss
-		learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
-		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
-		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)  # TODO: check if clipnorm is necessary
+		# learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
+		self.optimizer = tf.keras.optimizers.Adam(DEFAULT_LEARNING_RATE, beta_1=0.9, beta_2=0.98,
+		                                     epsilon=1e-9)
 
-		if LABEL_SMOOTHING_EPS is None:
-			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(reduction='none')
+		if FOCAL_LOSS == False:
+			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 		else:
-			self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
-
+			# self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
+			self.loss_object_ = FocalLoss(alpha=ALPHA_BALANCED, gamma=GAMMA_FOCAL)
 
 		# define train loss and accuracy
 		self.train_loss = tf.keras.metrics.Mean(name='train_loss')
@@ -419,11 +420,19 @@ class Pipeline():
 			                     , position, dtype=tf.dtypes.bool)
 			mask = tf.math.logical_and(mask, mask_pos)
 
-		if LABEL_SMOOTHING_EPS is None:
+		if FOCAL_LOSS == False:
 			loss_ = self.loss_object_sparse(real, pred)
 		else:
+			# FOCAL LOSS
 			# convert real to one-hot encoding... this is to apply label smoothing
 			real_one_hot = tf.one_hot(real, self.target_vocab_size)
+
+			# # label smoothing
+			# num_classes = tf.cast(tf.shape(real_one_hot)[1], pred.dtype)
+			# smooth_positives = 1.0 - LABEL_SMOOTHING_EPS
+			# smooth_negatives = LABEL_SMOOTHING_EPS / num_classes
+			# real_one_hot = real_one_hot * smooth_positives + smooth_negatives
+
 			loss_ = self.loss_object_(real_one_hot, pred)  # loss
 
 		mask = tf.cast(mask, dtype=loss_.dtype)
@@ -447,7 +456,7 @@ class Pipeline():
 
 		_mask = create_masks(tar_inp)
 
-		inp = self.transformer.preprocessing_base(img)  # image feature extractor to (7, 7, 1280)
+		inp = self.preprocessing_base(img)  # image feature extractor to (7, 7, 1280)
 
 		with tf.GradientTape() as tape:
 			predictions, _ = self.transformer(inp, tar_inp,
@@ -506,10 +515,10 @@ class Pipeline():
 
 			# select the last word from the seq_len dimension
 			predictions = predictions[:, -1:, :]  # (BEAM_SEARCH_N, 1, vocab_size)
-			predictions = tf.reshape(predictions, [BEAM_SEARCH_N, self.target_vocab_size])
 
-			# TODO: check if this softmax is necessary
-			predictions = tf.nn.softmax(predictions)
+			predictions = tf.nn.softmax(predictions)  # softmax the output
+
+			predictions = tf.reshape(predictions, [BEAM_SEARCH_N, self.target_vocab_size])
 
 			# candidates and put it to beam_output
 			candidates = predictions * tf.cast(beam_prob, tf.float32)
@@ -692,11 +701,11 @@ if __name__ == "__main__":
 				start_epoch = additional_info[key_epoch]
 			else:
 				start_epoch = additional_info["transformer_epoch"]
-		else:
-			if TRANSFER_LEARN_AUTOENCODER:
-				# load MobileNetV2 weight if epoch is equal to 0
-				print('Loading MobileNetV2 weights for epoch {}'.format(start_epoch + 1))
-				master.transformer.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
+
+		if TRANSFER_LEARN_AUTOENCODER:
+			# load MobileNetV2 weight if epoch is equal to 0
+			print('Loading MobileNetV2 weights for epoch {}'.format(start_epoch + 1))
+			master.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
 
 		total_batch_in_dataset = 0
 

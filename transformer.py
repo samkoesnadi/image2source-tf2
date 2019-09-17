@@ -381,15 +381,15 @@ class Pipeline():
 		self.preprocessing_model = tf.keras.Model(self.preprocessing_base_input, self.preprocessing)
 
 		# define optimizer and loss
-		learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
-		self.optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
+		self.learning_rate = CustomSchedule(dff, WARM_UP_STEPS)  # this parameter seems to work. It is however opened to be changed
+		self.optimizer = tf.keras.optimizers.Adam(self.learning_rate, beta_1=0.9, beta_2=0.98,
 		                                     epsilon=1e-9, amsgrad=True, clipnorm=1.)
 
 		if not FOCAL_LOSS:
 			self.loss_object_sparse = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 		else:
 			# self.loss_object_ = tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=LABEL_SMOOTHING_EPS, reduction='none')  # use this for label smoothing
-			self.loss_object_ = FocalLoss(alpha=ALPHA_BALANCED, gamma=GAMMA_FOCAL)
+			self.loss_object_ = FocalLoss()
 
 		# define train loss and accuracy
 		self.train_loss = tf.keras.metrics.Mean(name='train_loss')
@@ -436,7 +436,7 @@ class Pipeline():
 			# smooth_negatives = LABEL_SMOOTHING_EPS / num_classes
 			# real_one_hot = real_one_hot * smooth_positives + smooth_negatives
 
-			loss_ = self.loss_object_(real_one_hot, pred)  # loss
+			loss_ = self.loss_object_(real_one_hot, pred, self.learning_rate.alpha_balanced, self.learning_rate.gamma_focal)  # loss
 
 		mask = tf.cast(mask, dtype=loss_.dtype)
 		loss_ *= mask

@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import tensorflow as tf
-from common_definitions import EPOCHS, MIN_EPOCH_TO_BREAK, GAP_OF_DEAD_EPOCH, SIGMOID
+from common_definitions import EPOCHS, MIN_EPOCH_TO_BREAK, GAP_OF_DEAD_EPOCH, SIGMOID, ALPHA_BALANCED, GAMMA_FOCAL, WARM_UP_STEPS
 
 
 def save_fig_png(input_arr, filename):
@@ -42,9 +42,17 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 		self.warmup_steps = warmup_steps
 		self.multiplier = multiplier
 
+		self.alpha_balanced = ALPHA_BALANCED
+		self.gamma_focal = GAMMA_FOCAL
+
 	def __call__(self, step):
 		arg1 = tf.math.rsqrt(step) * self.multiplier
 		arg2 = step * (self.warmup_steps ** -1.5)
+
+		# update dynamic Focal Loss
+		# this is polynomial function
+		self.alpha_balanced = -(1. - ALPHA_BALANCED)*(step / (2. * WARM_UP_STEPS))**2 + 1.
+		self.gamma_focal = GAMMA_FOCAL*(step / (2. * WARM_UP_STEPS))**2
 
 		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
@@ -109,11 +117,10 @@ class SmartCheckpointSaver:
 
 
 class FocalLoss:
-	def __init__(self, alpha=0.25, gamma=2):
-		self.alpha = alpha
-		self.gamma = gamma
+	def __init__(self, ):
+		pass
 
-	def __call__(self, target_tensor, prediction_tensor):
+	def __call__(self, target_tensor, prediction_tensor, alpha=0.25, gamma=2):
 		if SIGMOID:
 			sigmoid_p = tf.nn.sigmoid(prediction_tensor)
 		else:

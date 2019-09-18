@@ -100,6 +100,9 @@ class SmartCheckpointSaver:
 			self.max_val_acc = curr_val_acc
 			self.max_acc_epoch = curr_epoch
 			return 1
+		elif curr_epoch <= MIN_EPOCH_TO_BREAK:  # if it is less or equal to MIN_EPOCH_TO_BREAK, reset everything
+			self.max_val_acc = curr_val_acc
+			self.max_acc_epoch = curr_epoch
 		else:
 			epoch_min = min(EPOCHS, max(MIN_EPOCH_TO_BREAK, int(self.max_acc_epoch * 2.)), int(self.max_acc_epoch + GAP_OF_DEAD_EPOCH))  # min epoch to break is 10
 

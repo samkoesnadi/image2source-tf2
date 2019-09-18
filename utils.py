@@ -42,17 +42,9 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 		self.warmup_steps = warmup_steps
 		self.multiplier = multiplier
 
-		self.alpha_balanced = ALPHA_BALANCED
-		self.gamma_focal = GAMMA_FOCAL
-
 	def __call__(self, step):
 		arg1 = tf.math.rsqrt(step) * self.multiplier
 		arg2 = step * (self.warmup_steps ** -1.5)
-
-		# update dynamic Focal Loss
-		# this is polynomial function
-		self.alpha_balanced = -(1. - ALPHA_BALANCED)*(step / (2. * WARM_UP_STEPS))**2 + 1.
-		self.gamma_focal = GAMMA_FOCAL*(step / (2. * WARM_UP_STEPS))**2
 
 		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
@@ -118,9 +110,15 @@ class SmartCheckpointSaver:
 
 class FocalLoss:
 	def __init__(self, ):
-		pass
+		self.step = 0
 
-	def __call__(self, target_tensor, prediction_tensor, alpha=0.25, gamma=2):
+	def __call__(self, target_tensor, prediction_tensor):
+
+		# update dynamic Focal Loss
+		# this is polynomial function
+		alpha = -(1. - ALPHA_BALANCED) * (self.step / (2. * WARM_UP_STEPS)) ** 2 + 1.
+		gamma = GAMMA_FOCAL * (self.step / (2. * WARM_UP_STEPS)) ** 2
+
 		if SIGMOID:
 			sigmoid_p = tf.nn.sigmoid(prediction_tensor)
 		else:
@@ -135,7 +133,11 @@ class FocalLoss:
 		# For negative prediction, only need consider back part loss, front part is 0;
 		# target_tensor > zeros <=> z=1, so negative coefficient = 0.
 		neg_p_sub = tf.where(target_tensor > zeros, zeros, sigmoid_p)
-		per_entry_cross_ent = - self.alpha * (pos_p_sub ** self.gamma) * tf.math.log(tf.clip_by_value(sigmoid_p, 1e-9, 1.0)) \
-		                      - (1 - self.alpha) * (neg_p_sub ** self.gamma) * tf.math.log(
+		per_entry_cross_ent = - alpha * (pos_p_sub ** gamma) * tf.math.log(tf.clip_by_value(sigmoid_p, 1e-9, 1.0)) \
+		                      - (1 - alpha) * (neg_p_sub ** gamma) * tf.math.log(
 			tf.clip_by_value(1.0 - sigmoid_p, 1e-9, 1.0))
+
+		# update internal step
+		self.step += 1
+
 		return tf.reduce_sum(per_entry_cross_ent, axis=-1)

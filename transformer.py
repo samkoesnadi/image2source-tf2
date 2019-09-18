@@ -399,7 +399,7 @@ class Pipeline():
 		self.ckpt = tf.train.Checkpoint(transformer=self.transformer,
 		                           optimizer=self.optimizer)
 
-		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=30)
+		self.ckpt_manager = tf.train.CheckpointManager(self.ckpt, checkpoint_path, max_to_keep=100)
 
 		self.smart_ckpt_saver = SmartCheckpointSaver(self.ckpt_manager)
 
@@ -436,7 +436,7 @@ class Pipeline():
 			# smooth_negatives = LABEL_SMOOTHING_EPS / num_classes
 			# real_one_hot = real_one_hot * smooth_positives + smooth_negatives
 
-			loss_ = self.loss_object_(real_one_hot, pred, self.learning_rate.alpha_balanced, self.learning_rate.gamma_focal)  # loss
+			loss_ = self.loss_object_(real_one_hot, pred)  # loss
 
 		mask = tf.cast(mask, dtype=loss_.dtype)
 		loss_ *= mask
@@ -697,6 +697,11 @@ if __name__ == "__main__":
 
 	master = Pipeline(TOKENIZER_FILENAME, ADDITIONAL_FILENAME, TRANSFORMER_CHECKPOINT_PATH)  # master pipeline
 
+	if TRANSFER_LEARN_AUTOENCODER:
+		# load MobileNetV2 weight if epoch is equal to 0
+		print('Loading MobileNetV2 weights')
+		master.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
+
 	if IS_TRAINING:
 		# tensorboard support
 		current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -710,11 +715,6 @@ if __name__ == "__main__":
 				start_epoch = additional_info[key_epoch]
 			else:
 				start_epoch = additional_info["transformer_epoch"]
-
-		if TRANSFER_LEARN_AUTOENCODER:
-			# load MobileNetV2 weight if epoch is equal to 0
-			print('Loading MobileNetV2 weights for epoch {}'.format(start_epoch + 1))
-			master.preprocessing_base.load_weights(MOBILENETV2_WEIGHT_PATH)
 
 		total_batch_in_dataset = 0
 
@@ -768,7 +768,7 @@ if __name__ == "__main__":
 					plt.close()
 
 					# write the html to file
-					with open("generated/generated_" + str(i) + ".html", "w") as f:
+					with open("generated/generated_" + str(i) + '_' + str(epoch+1) + ".html", "w") as f:
 						f.write(html)
 
 					# write the ground truth to file

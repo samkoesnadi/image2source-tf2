@@ -42,7 +42,7 @@ N_TEST_DATASET = 3
 DROPOUT_RATE = 0.1
 REGULARIZER_RATE = 0.01
 # LABEL_SMOOTHING_EPS = 0.1
-FOCAL_LOSS = False
+FOCAL_LOSS = True
 SIGMOID = False
 MIN_EPOCH_TO_BREAK = 40
 GAP_OF_DEAD_EPOCH = 50  # gap before it is going to kill the no more training network
@@ -86,7 +86,7 @@ AUTOENCODER_CHECKPOINT_PATH = "./checkpoints/train/autoencoder_better_extractor"
 # TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning"  # this has good result!
 
 # Harder parser
-TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_better_extractor"
+TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_better_extractor_focalLoss"
 
 
 ### Set Hyperparameters for Transformer

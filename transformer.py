@@ -742,10 +742,6 @@ if __name__ == "__main__":
 
 			print('Time taken for 1 epoch: {} secs'.format(time.time() - start))
 
-			# store last epoch
-			additional_info[key_epoch] = epoch
-			store_additional_info(additional_info, ADDITIONAL_FILENAME)
-
 			# store loss and acc to tensorboard
 			with train_summary_writer.as_default():
 				tf.summary.scalar('loss', master.train_loss.result(), step=epoch)  # REMEMBER: the epoch shown in the command line is epoch+1
@@ -755,6 +751,10 @@ if __name__ == "__main__":
 			if should_break == -1:
 				start_epoch = epoch
 				break
+			elif should_break == 1:
+				# store last epoch
+				additional_info[key_epoch] = master.smart_ckpt_saver.max_acc_epoch
+				store_additional_info(additional_info, ADDITIONAL_FILENAME)
 
 			if (epoch+1) % 50 == 0:
 				# translate_from_dataset image to html for evaluation

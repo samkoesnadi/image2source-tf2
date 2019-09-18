@@ -48,6 +48,8 @@ MIN_EPOCH_TO_BREAK = 40
 GAP_OF_DEAD_EPOCH = 50  # gap before it is going to kill the no more training network
 DEFAULT_LEARNING_RATE = 1e-3
 WARM_UP_STEPS = 2000  # for scheduler
+MIN_EPSILON = 1e-6
+MAX_EPSILON = 1. - MIN_EPSILON
 # LEARNING_RATE_DECAY = (DEFAULT_LEARNING_RATE - 4e-4) / EPOCHS / 100
 
 # Focal loss parameter

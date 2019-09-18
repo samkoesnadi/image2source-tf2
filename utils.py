@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import tensorflow as tf
-from common_definitions import EPOCHS, MIN_EPOCH_TO_BREAK, GAP_OF_DEAD_EPOCH, SIGMOID, ALPHA_BALANCED, GAMMA_FOCAL, WARM_UP_STEPS
+from common_definitions import *
 
 
 def save_fig_png(input_arr, filename):
@@ -119,14 +119,14 @@ class FocalLoss:
 
 		# update dynamic Focal Loss
 		# this is polynomial function
-		alpha = -(1. - ALPHA_BALANCED) * (self.step / (2. * WARM_UP_STEPS)) ** 2 + 1.
-		gamma = GAMMA_FOCAL * (self.step / (2. * WARM_UP_STEPS)) ** 2
+		alpha = (ALPHA_BALANCED - MAX_EPSILON) * (self.step / (WARM_UP_STEPS // 2)) ** 2 + MAX_EPSILON
+		gamma = (GAMMA_FOCAL - MAX_EPSILON) * (self.step / (WARM_UP_STEPS // 2)) ** 2 + MAX_EPSILON
 
 		if SIGMOID:
 			sigmoid_p = tf.nn.sigmoid(prediction_tensor)
 		else:
 			sigmoid_p = tf.nn.softmax(prediction_tensor)
-
+		sigmoid_p = tf.clip_by_value(sigmoid_p, MIN_EPSILON, MAX_EPSILON)  # clip the value
 		zeros = tf.zeros_like(sigmoid_p, dtype=sigmoid_p.dtype)
 
 		# For poitive prediction, only need consider front part loss, back part is 0;
@@ -136,9 +136,8 @@ class FocalLoss:
 		# For negative prediction, only need consider back part loss, front part is 0;
 		# target_tensor > zeros <=> z=1, so negative coefficient = 0.
 		neg_p_sub = tf.where(target_tensor > zeros, zeros, sigmoid_p)
-		per_entry_cross_ent = - alpha * (pos_p_sub ** gamma) * tf.math.log(tf.clip_by_value(sigmoid_p, 1e-9, 1.0)) \
-		                      - (1 - alpha) * (neg_p_sub ** gamma) * tf.math.log(
-			tf.clip_by_value(1.0 - sigmoid_p, 1e-9, 1.0))
+		per_entry_cross_ent = - alpha * (pos_p_sub ** gamma) * tf.math.log(sigmoid_p) \
+		                      - (1 - alpha) * (neg_p_sub ** gamma) * tf.math.log(1.0 - sigmoid_p)
 
 		# update internal step
 		self.step += 1

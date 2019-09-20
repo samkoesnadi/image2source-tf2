@@ -1,6 +1,5 @@
 import logging
 import tensorflow as tf
-FOCAL_LOSS = None
 
 # You'll generate plots of attention in order to see which parts of an image
 # our model focuses on during captioning
@@ -42,7 +41,7 @@ N_TEST_DATASET = 3
 DROPOUT_RATE = 0.1
 REGULARIZER_RATE = 0.01
 # LABEL_SMOOTHING_EPS = 0.1
-FOCAL_LOSS = True
+FOCAL_LOSS = False
 SIGMOID = False
 MIN_EPOCH_TO_BREAK = 40
 GAP_OF_DEAD_EPOCH = 50  # gap before it is going to kill the no more training network
@@ -54,7 +53,7 @@ MAX_EPSILON = 1. - MIN_EPSILON
 
 # Focal loss parameter
 ALPHA_BALANCED = 0.25
-GAMMA_FOCAL = 2.0
+GAMMA_FOCAL = 1.0
 # ALPHA_BALANCED = 0.25
 # GAMMA_FOCAL = 2.0
 
@@ -88,7 +87,7 @@ AUTOENCODER_CHECKPOINT_PATH = "./checkpoints/train/autoencoder_better_extractor"
 # TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_transfer_learning"  # this has good result!
 
 # Harder parser
-TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_better_extractor_focalLoss"
+TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_better_extractor"
 
 
 ### Set Hyperparameters for Transformer

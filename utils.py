@@ -118,9 +118,12 @@ class FocalLoss:
 	def __call__(self, target_tensor, prediction_tensor):
 
 		# update dynamic Focal Loss
-		# this is polynomial function
-		alpha = (ALPHA_BALANCED - MAX_EPSILON) * (self.step / (WARM_UP_STEPS // 2)) ** 2 + MAX_EPSILON
-		gamma = (GAMMA_FOCAL - MAX_EPSILON) * (self.step / (WARM_UP_STEPS // 2)) ** 2 + MAX_EPSILON
+		# # this is polynomial function
+		# alpha = max((ALPHA_BALANCED - .75) * (self.step / (WARM_UP_STEPS // 2)) ** 2 + .75, ALPHA_BALANCED)
+		# gamma = min((GAMMA_FOCAL - 0.) * (self.step / (WARM_UP_STEPS // 2)) ** 2 + 0., GAMMA_FOCAL)
+
+		alpha = ALPHA_BALANCED
+		gamma = GAMMA_FOCAL
 
 		if SIGMOID:
 			sigmoid_p = tf.nn.sigmoid(prediction_tensor)

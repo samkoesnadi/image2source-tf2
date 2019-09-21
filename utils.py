@@ -93,6 +93,12 @@ class SmartCheckpointSaver:
 		:param curr_val_acc:
 		:return: 1 ckpt saved, 0 nothing is done, -1 no new max_val_acc is created in the given rule
 		"""
+
+		# just for beginning when max_val and max_acc is empty
+		if self.max_acc_epoch == 0:
+			self.max_val_acc = curr_val_acc
+			self.max_acc_epoch = curr_epoch
+
 		if curr_val_acc > self.max_val_acc:
 			ckpt_save_path = self.ckpt_manager.save()
 			print('Saving checkpoint for epoch {} at {}'.format(curr_epoch,

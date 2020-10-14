@@ -8,10 +8,8 @@ model_weights
 **/__pycache__
 logs
 
-# all .json, .png, .html
+# all .json
 *.json
-*.png
-*.html
 
 # project folder
 .idea

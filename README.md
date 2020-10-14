@@ -6,7 +6,7 @@
 ![](assets/example.png)
 
 Convert image to source code. In this project, the source code is in the form of 
- markup code HTML+CSS. The algorithm used is Transformer from the paper [Attention is all you need](https://arxiv.org/abs/1706.03762).
+ markup code HTML+CSS. The algorithm used is **Transformer** from the paper [Attention is all you need](https://arxiv.org/abs/1706.03762).
  The website image will be inputted to MobileNetV2 to produce the encoded low-dimensional vector. This is then passed to
  the encoder side of the Transformer. The decoder of the Transformer will then produce the simplified XML Notations.
  This notations will be converted to HTML. The length of the simplified XML Notation is at most case shorter than HTML, which is

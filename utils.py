@@ -32,8 +32,8 @@ def save_fig_png(input_arr, filename):
 	plt.close()
 
 
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-	def __init__(self, d_model, warmup_steps=4000, multiplier=1):
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):  # this one will go down second time some how
+	def __init__(self, d_model, warmup_steps=4000, multiplier=1.):
 		super(CustomSchedule, self).__init__()
 
 		self.d_model = d_model
@@ -43,7 +43,8 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 		self.multiplier = multiplier
 
 	def __call__(self, step):
-		arg1 = tf.math.rsqrt(step) * self.multiplier
+		arg1 = tf.math.rsqrt(step) / tf.maximum((step - self.warmup_steps) * self.multiplier / (self.warmup_steps * 2), 1)
+		# arg1 = tf.math.rsqrt(step)
 		arg2 = step * (self.warmup_steps ** -1.5)
 
 		return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)

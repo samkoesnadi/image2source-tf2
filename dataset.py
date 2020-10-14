@@ -80,10 +80,11 @@ def convert_and_write_all_datasets(annotations_path, filename):
 	# tokenize the sxns
 	tokenizer = tf.keras.preprocessing.text.Tokenizer(TOP_K, filters='', split=' ', oov_token="oov")
 	tokenizer.fit_on_texts(sxns)
-	seqs = tokenizer.texts_to_sequences(sxns)
 
 	tokenizer.word_index['<pad>'] = 0
 	tokenizer.index_word[0] = '<pad>'
+
+	seqs = tokenizer.texts_to_sequences(sxns)
 
 	# constrain data to MAX_SEQ_LEN_DATASET
 	positions = len(seqs) * [0]

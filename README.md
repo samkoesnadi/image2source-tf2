@@ -46,6 +46,7 @@ python3 transformer.py
 The global parameters are all set at `common_defintions.py`.
 
 ## Future improvements
+- [ ] Clean project and set up proper CI (prioritized)
 - [ ] Improve documentation
 - [ ] Window size is implemented, but not yet properly working. The reason
 window size is implemented is to reduce computation time. There are several papers

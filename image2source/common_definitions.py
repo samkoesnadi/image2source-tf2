@@ -80,7 +80,8 @@ TFRECORD_FILENAME = "datasets/pix2code_better_extractor.tfrecord"
 TOKENIZER_FILENAME = "datasets/pix2code_tokenizer_better_extractor.json"
 ADDITIONAL_FILENAME = "datasets/pix2code_additional_better_extractor.json"
 
-MOBILENETV2_WEIGHT_PATH = "model_weights/pix2code_MobileNetV2_better_extractor.h5"  # autoencoder trained on pix2code datasets
+EFFICIENTNET_WEIGHT_PATH = "model_weights/pix2code_EfficientNet_better_extractor.h5"  # autoencoder
+# trained on pix2code datasets
 TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer_better_extractor.h5"  # transformer trained on pix2code datasets
 
 # Harder parser

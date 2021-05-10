@@ -39,6 +39,15 @@ as human for images that are not similar to the training dataset.
 ## Training
 The training and testing can be done via `transformer.py`. Make sure beforehand that the requirements of the libraries are met.
 
+### Process dataset
+1. `python annotate.py`
+2. `get the dataset folder web from pix2code and move it to ../datasets/pix2code/`
+3. `find ../datasets/pix2code/ -name *.gui | xargs -n1 ./compiler/web-compiler.py`
+4. `mkdir datasets`
+5. `python dataset.py`
+
+
+### Train with file
 ```python3 
 python3 transformer.py
 ```
@@ -66,7 +75,9 @@ Contributions to the project are made using the "Fork & Pull" model. The typical
 7. create a Pull Request (PR) from your GitHub fork
 (go to your fork's webpage and click on "Pull Request."
 You can then add a message to describe your proposal.)
-
+   
 
 ## LICENSE
-This open-source project is licensed under MIT License.
+This open-source project is licensed under `MIT License`.
+Also huge thanks for the work of these below in which our work is a continuation from:
++ https://github.com/tonybeltramelli/pix2code

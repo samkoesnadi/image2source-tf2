@@ -6,6 +6,7 @@ Main function: convert the dataset to TFRecord File
 import json
 
 import tensorflow as tf
+import skimage.io
 
 from image2source.common_definitions import (
     IMAGE_INPUT_SIZE, BUFFER_SIZE, TOP_K, MAX_SEQ_LEN_DATASET, N_TEST_DATASET, BATCH_SIZE)
@@ -39,6 +40,13 @@ def _int64_feature(value):
 def load_image(image_path):
     img = tf.io.read_file(image_path)
     img = tf.image.decode_png(img, channels=3)
+    img = tf.image.resize(img, (IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE))
+    img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
+    return img
+
+
+def load_image_skimage(image_path):
+    img = skimage.io.imread(image_path)[:, :, :3]
     img = tf.image.resize(img, (IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE))
     img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
     return img

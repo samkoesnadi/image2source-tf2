@@ -18,7 +18,7 @@ import tensorflow as tf
 from image2source.common_definitions import TRANSFORMER_CHECKPOINT_PATH, \
     TOKENIZER_FILENAME, ADDITIONAL_FILENAME, TRANSFORMER_WEIGHT_PATH, \
     TARGET_FILENAME, MOBILENET_WEIGHT_PATH
-from image2source.dataset_helper import load_image
+from image2source.dataset_helper import load_image_skimage
 from image2source.pipeline_helper import Pipeline
 
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     master.load_weights(MOBILENET_WEIGHT_PATH, TRANSFORMER_WEIGHT_PATH)
     logging.debug("Weights are loaded!")
 
-    img = load_image(args.filename)
+    img = load_image_skimage(args.filename)
     logging.debug("Target image is loaded!")
 
     logging.debug("Start converting!")

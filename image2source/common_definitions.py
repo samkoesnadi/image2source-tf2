@@ -21,7 +21,7 @@ import pickle
 LOGGING_LEVEL = logging.DEBUG
 IS_TRAINING = True
 IS_TEST_IMAGE = False
-USE_GPU = False
+USE_GPU = True
 
 
 TOP_K = 20000  # this is for tokenizer

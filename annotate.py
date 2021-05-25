@@ -2,13 +2,19 @@
 Select and list all the datasets are wanted for the project. They would be stored in a dictionary of html_id and image_id. This dictionary is stored in json file.
 Author: Samuel Koesnadi 2019
 """
+import os
+
 from image2source.dataset_helper import convert_and_write_all_datasets, store_tokenizer_to_path, \
     store_additional_info
 from image2source.utils import dump_json_to_path, pairs_from_parent_path
 from image2source.common_definitions import ORIGINAL_DATASET_PATH, ANNOTATIONS_PATH, \
     TFRECORD_FILENAME, TOKENIZER_FILENAME, ADDITIONAL_FILENAME
 
+
 if __name__ == "__main__":
+    ### MAKE PARENT DIRECTORY OF GENERATED FILES ###
+    os.mkdir(os.path.dirname(TFRECORD_FILENAME))
+
     ### ANNOTATE PIX2CODE'S DATASETS ###
     dump_json_to_path(ANNOTATIONS_PATH, pairs_from_parent_path(ORIGINAL_DATASET_PATH))
 

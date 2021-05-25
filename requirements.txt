@@ -2,3 +2,4 @@ scipy
 bs4
 tensorflow-gpu
 scikit-image
+tqdm

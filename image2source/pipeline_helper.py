@@ -9,6 +9,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score
 import tensorflow as tf
+from tqdm import tqdm
 
 from image2source.common_definitions import (
     IMAGE_FEATURE_DIMS,
@@ -203,7 +204,7 @@ class Pipeline:
         beam_result = None
         attention_weights = None
 
-        for i in range(MAX_SEQ_LEN + self.max_position):
+        for _ in tqdm(range(MAX_SEQ_LEN + self.max_position)):
             look_ahead_mask = create_look_ahead_mask(tf.shape(beam_output)[1])
 
             # predictions.shape == (batch_size, seq_len, vocab_size)

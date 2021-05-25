@@ -44,7 +44,7 @@ if __name__ == "__main__":
     master.load_weights(MOBILENET_WEIGHT_PATH, TRANSFORMER_WEIGHT_PATH)
     logging.debug("Weights are loaded!")
 
-    img = load_image(TARGET_FILENAME)
+    img = load_image(args.filename)
     logging.debug("Target image is loaded!")
 
     logging.debug("Start converting!")
@@ -55,6 +55,6 @@ if __name__ == "__main__":
     if not os.path.exists("generated"):
         os.mkdir("generated")
 
-    with tf.io.gfile.GFile("generated/generated_" + args.filename + ".html", "w") as f:
+    with tf.io.gfile.GFile("generated/generated_from_predict.html", "w") as f:
         f.write(predicted_html)
     logging.debug("HTML/CSS is generated!")

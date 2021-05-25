@@ -13,7 +13,9 @@ from image2source.common_definitions import ORIGINAL_DATASET_PATH, ANNOTATIONS_P
 
 if __name__ == "__main__":
     ### MAKE PARENT DIRECTORY OF GENERATED FILES ###
-    os.mkdir(os.path.dirname(TFRECORD_FILENAME))
+    parent_dir = os.path.dirname(TFRECORD_FILENAME)
+    if not os.path.exists(parent_dir):
+        os.mkdir(parent_dir)
 
     ### ANNOTATE PIX2CODE'S DATASETS ###
     dump_json_to_path(ANNOTATIONS_PATH, pairs_from_parent_path(ORIGINAL_DATASET_PATH))

@@ -9,6 +9,7 @@ what I will do first, I will instead implement one network with a limited window
 
 Author: Samuel Koesnadi 2019
 """
+import logging
 
 import bs4
 from bs4 import BeautifulSoup
@@ -74,7 +75,7 @@ def encode_2_sxn(html):
                 for target_tagName in ["body", "head"]:
                     for elem in parent_elem.find_all(target_tagName):
                         sxn_text += __encode_sxn(elem)
-            elif parent_elem.name == "head":  # exception for HEAD, only print title and style if exists
+            elif parent_elem.name == "head":  # exception for HEAD, only logging.info title and style if exists
                 for target_tagName in ["title", "style"]:
                     for elem in parent_elem.find_all(target_tagName):
                         sxn_text += __encode_sxn(elem)
@@ -92,9 +93,14 @@ def encode_2_sxn(html):
 
         return sxn_text
 
-    # select codes inside real HTML tag to print
+    # move header to the end
+    header = soup.find("header")
+    header.name = "head"
+    soup.html.insert(len(soup.html.contents), header)
+
+    # select codes inside real HTML tag to logging.info
     list_of_contents_length = list(map(len, map(str, soup.contents)))
-    soup_index = list_of_contents_length.index(max(list_of_contents_length))  # index of which soup content to print (the longest is definitely what we are up to, which is HTML code)
+    soup_index = list_of_contents_length.index(max(list_of_contents_length))  # index of which soup content to logging.info (the longest is definitely what we are up to, which is HTML code)
 
     sxn_result = __encode_sxn(soup.contents[soup_index])  # encode the html to sxn
 
@@ -178,27 +184,30 @@ def decode_2_html(sxn_result):
 
     return BeautifulSoup(html_result, "lxml").prettify()
 
+
 if __name__ == "__main__":
+    logging.getLogger().setLevel(logging.INFO)
+
     # open the html file
     # filename = "all_data/0CE73E18-575A-4A70-9E40-F000B250344F.html"
-    filename = "../../datasets/example.html"
-    filename = "../generated/ground_truth_0.html"
+    filename = "./assets/ground_truth_0.html"
     filename_generated = "generated_example.html"
     with open(filename, "r") as f:
         html = f.read()
 
-    # print the length of the original HTML file
-    print ("Original HTML length", len(html))
+    # logging.info the length of the original HTML file
+    print("Original HTML length", len(html))
 
-    # encode and print the length and the html result
+    # encode and logging.info the length and the html result
     sxn_result = encode_2_sxn(html)
-    print ("SXN length", len(sxn_result), repr(sxn_result))
 
-    # decode and print the html result of it
+    print("SXN length", len(sxn_result), repr(sxn_result))
+
+    # decode and logging.info the html result of it
     html_result = decode_2_html(sxn_result)
     print("html_result:", len(html_result), repr(html_result))
 
     # store the generated html to file
     with open(filename_generated, "w") as f:
         f.write(html_result)
-        print("\n*** Generated HTML is stored to", filename_generated)
+        logging.info("\n*** Generated HTML is stored to %s" % filename_generated)

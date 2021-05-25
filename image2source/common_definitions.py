@@ -76,16 +76,16 @@ ANNOTATIONS_PATH = "annotations.json"
 
 
 # Harder parser
-TFRECORD_FILENAME = "datasets/pix2code_better_extractor.tfrecord"
-TOKENIZER_FILENAME = "datasets/pix2code_tokenizer_better_extractor.json"
-ADDITIONAL_FILENAME = "datasets/pix2code_additional_better_extractor.json"
+TFRECORD_FILENAME = "datasets/pix2code.tfrecord"
+TOKENIZER_FILENAME = "datasets/pix2code_tokenizer.json"
+ADDITIONAL_FILENAME = "datasets/pix2code_additional.json"
 
-MOBILENET_WEIGHT_PATH = "model_weights/pix2code_MobileNetV2_better_extractor.h5"  # autoencoder
+MOBILENET_WEIGHT_PATH = "model_weights/pix2code_MobileNetV2.h5"  # autoencoder
 # trained on pix2code datasets
-TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer_better_extractor.h5"  # transformer trained on pix2code datasets
+TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer.h5"  # transformer trained on pix2code datasets
 
 # Harder parser
-TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer_better_extractor"
+TRANSFORMER_CHECKPOINT_PATH = "./checkpoints/train/transformer"
 
 ### ANNOTATE ORIGINAL DATASET ###
 ORIGINAL_DATASET_PATH = "../datasets/pix2code"

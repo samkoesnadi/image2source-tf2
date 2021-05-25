@@ -53,6 +53,11 @@ The training and testing can be done via `transformer.py`. Make sure beforehand 
 python3 main.py
 ```
 
+### Predict with file
+```python3 
+python3 predict.py <target path of the image file>
+```
+
 The global parameters are all set at `common_defintions.py`.
 
 ## Future improvements

@@ -46,7 +46,6 @@ class Pipeline:
         self.target_vocab_size = len(self.tokenizer.index_word)  # the total length of index
 
         # instance of Transformer
-        print(self.target_vocab_size)
         self.transformer = Transformer(NUM_LAYERS_N,
                                        D_MODEL_N,
                                        NUM_HEADS_N,

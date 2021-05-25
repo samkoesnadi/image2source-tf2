@@ -40,7 +40,7 @@ def load_image(image_path):
     img = tf.io.read_file(image_path)
     img = tf.image.decode_png(img, channels=3)
     img = tf.image.resize(img, (IMAGE_INPUT_SIZE, IMAGE_INPUT_SIZE))
-    img = tf.keras.applications.efficientnet.preprocess_input(img)
+    img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
     return img
 
 

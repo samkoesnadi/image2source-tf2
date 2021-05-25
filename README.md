@@ -41,6 +41,7 @@ as human for images that are not similar to the training dataset.
 The training and testing can be done via `transformer.py`. Make sure beforehand that the requirements of the libraries are met.
 
 ### Process dataset
+! This step is necessary before proceeding to training and/or predcition !
 1. `get the dataset folder web from pix2code and move it to ../datasets/pix2code/`
 1. `find ../datasets/pix2code/ -name *.gui | xargs -n1 ./compiler/web-compiler.py`
 1. `mkdir datasets`

@@ -34,7 +34,7 @@ ACTIVATION = tf.nn.relu6
 KERNEL_INITIALIZER = tf.keras.initializers.he_normal()
 
 ### Set default parameters for all model
-IMAGE_INPUT_SIZE = 224  # this to fit default criteria from EfficientNet
+IMAGE_INPUT_SIZE = 224  # this to fit default criteria from MobileNet
 BATCH_SIZE = 1
 BUFFER_SIZE = 200  # this is important for shuffling
 EPOCHS = 300
@@ -80,7 +80,7 @@ TFRECORD_FILENAME = "datasets/pix2code_better_extractor.tfrecord"
 TOKENIZER_FILENAME = "datasets/pix2code_tokenizer_better_extractor.json"
 ADDITIONAL_FILENAME = "datasets/pix2code_additional_better_extractor.json"
 
-EFFICIENTNET_WEIGHT_PATH = "model_weights/pix2code_EfficientNet_better_extractor.h5"  # autoencoder
+MOBILENET_WEIGHT_PATH = "model_weights/pix2code_MobileNetV2_better_extractor.h5"  # autoencoder
 # trained on pix2code datasets
 TRANSFORMER_WEIGHT_PATH = "model_weights/pix2code_transformer_better_extractor.h5"  # transformer trained on pix2code datasets
 

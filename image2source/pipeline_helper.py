@@ -5,6 +5,7 @@ import logging
 import math
 from time import time
 
+import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.metrics import accuracy_score
 import tensorflow as tf
@@ -45,6 +46,7 @@ class Pipeline:
         self.target_vocab_size = len(self.tokenizer.index_word)  # the total length of index
 
         # instance of Transformer
+        print(self.target_vocab_size)
         self.transformer = Transformer(NUM_LAYERS_N,
                                        D_MODEL_N,
                                        NUM_HEADS_N,
@@ -55,7 +57,7 @@ class Pipeline:
                                        self.max_position)
 
         # preprocessing base model
-        self.image_feature_model = tf.keras.applications.efficientnet.EfficientNetB0(
+        self.image_feature_model = tf.keras.applications.mobilenet_v2.MobileNetV2(
             include_top=False, weights=None, pooling=None)
 
         # define optimizer and loss
@@ -85,6 +87,17 @@ class Pipeline:
         if self.ckpt_manager.latest_checkpoint:
             self.ckpt.restore(self.ckpt_manager.latest_checkpoint)
             print('Latest checkpoint restored!!')
+
+    def load_weights(self, mobilenet_weight_path, transformer_weight_path):
+        # load weights of the model
+        self.image_feature_model.load_weights(mobilenet_weight_path)
+
+        # preload to construct graph
+        self.transformer(
+            np.zeros((1, 49, 1280)),
+            np.zeros((1, 1)),
+            training=True, look_ahead_mask=None, decode_pos=None)
+        self.transformer.load_weights(transformer_weight_path)
 
     def loss(self, real, pred, position, mask):
         """

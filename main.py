@@ -19,7 +19,7 @@ from matplotlib import pyplot as plt
 
 from image2source.common_definitions import TFRECORD_FILENAME, TRANSFORMER_CHECKPOINT_PATH, \
     TOKENIZER_FILENAME, IS_TRAINING, ADDITIONAL_FILENAME, EPOCHS, TRANSFORMER_WEIGHT_PATH, \
-    IS_TEST_IMAGE, TARGET_FILENAME
+    IS_TEST_IMAGE, TARGET_FILENAME, MOBILENET_WEIGHT_PATH
 from image2source.dataset_helper import get_all_datasets, load_additional_info, \
     store_additional_info, load_image
 from image2source.html_SXN_parser.parser import decode_2_html
@@ -29,7 +29,6 @@ from image2source.pipeline_helper import Pipeline
 if __name__ == "__main__":
     # initialize train dataset
     train_datasets, test_dataset = get_all_datasets(TFRECORD_FILENAME)
-    additional_info = load_additional_info(ADDITIONAL_FILENAME)
     key_epoch = "transformer_epoch_" + os.path.basename(
         TRANSFORMER_CHECKPOINT_PATH)  # the key name in additional info for prev epoch
 
@@ -44,6 +43,7 @@ if __name__ == "__main__":
 
         ### Train loop
         start_epoch = 0
+        additional_info = load_additional_info(ADDITIONAL_FILENAME)
         if master.ckpt_manager.latest_checkpoint:
             if key_epoch in additional_info:
                 start_epoch = additional_info[key_epoch]

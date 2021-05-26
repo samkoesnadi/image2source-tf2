@@ -24,6 +24,7 @@ the steps to produce the datasets, SXN parser, and training file arguments)**
 ##### Table of Contents  
 - [Why?](#why)
 - [Training](#training)
+- [Predict with file](#predict-with-file)
 - [Future improvements](#future-improvements)
 - [CONTRIBUTING](#contributing)
 - [LICENSE](#license)
@@ -38,7 +39,8 @@ seconds with a decent code quality. The limitation within is that it does not pe
 as human for images that are not similar to the training dataset.
 
 ## Training
-The training and testing can be done via `transformer.py`. Make sure beforehand that the requirements of the libraries are met.
+The training and testing can be done via `main.py`. Make sure beforehand that the requirements of 
+the libraries are met.
 
 ### Process dataset
 ! This step is necessary before proceeding to training and/or predcition !
@@ -52,6 +54,9 @@ The training and testing can be done via `transformer.py`. Make sure beforehand 
 ```python3 
 python3 main.py
 ```
+
+### Pretrained weight and tokenizer
+This can be downloaded from : https://github.com/samuelmat19/image2source-tf2/releases/tag/1.0.0
 
 ### Predict with file
 ```python3 

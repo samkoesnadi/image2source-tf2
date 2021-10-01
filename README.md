@@ -42,6 +42,20 @@ as human for images that are not similar to the training dataset.
 The training and testing can be done via `main.py`. Make sure beforehand that the requirements of 
 the libraries are met.
 
+## Download pretrained weights
+To have the pretrained weights, you can follow the following steps
+```
+curl https://api.github.com/repos/samuelmat19/image2source-tf2/releases/latest | grep "browser_download_url" | grep -Eo 'https://[^\"]*' | xargs wget
+tar -xJf pretrained_weights.tar.xz -C .
+rm -rf pretrained_weights.tar.xz
+ ```
+
+## Running demo page
+``` 
+# Make sure that the weight is available
+python3 ui.py
+```
+
 ### Process dataset
 ! This step is necessary before proceeding to training and/or predcition !
 1. `get the dataset folder web from pix2code and move it to ../datasets/pix2code/`

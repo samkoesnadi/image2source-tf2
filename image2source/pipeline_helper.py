@@ -385,5 +385,6 @@ class Pipeline:
                 predicted_sxn)  # translate_from_dataset to predicted html
 
             return predicted_html
-        except:
+        except Exception as error:
+            logging.error(error)
             return "<html></html>"  # this means bad translation

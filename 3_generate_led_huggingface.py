@@ -1,13 +1,14 @@
 import argparse
 
-# import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import cv2
 import numpy as np
 import tensorflow as tf
 from transformers import TFLEDForConditionalGeneration, LEDConfig
 
-from image2source.common_definitions import led_partial_configs, TARGET_SIZE, d_model, encoder_max_length
+from image2source.common_definitions import led_partial_configs, TARGET_SIZE, d_model, encoder_max_length, \
+    decoder_max_length
 from image2source.utils import load_tokenizer_from_path, TFImageLEDForConditionalGeneration
 
 if __name__ == "__main__":
@@ -17,7 +18,11 @@ if __name__ == "__main__":
         default="datasets/mockupai_tokenizer.json", type=str)
     parser.add_argument(
         "--modelCheckpointPath", help="the target directory of the checkpoint",
-        default="outputs/led_2021-10-10-19:53:11.401422/checkpoint", type=str)
+        default="outputs/led_2021-10-11-07:36:59.721503/checkpoint", type=str)
+    parser.add_argument(
+        "--fileUrl", help="the input image file",
+        default="./datasets/parsed/datasets-raw-pix2code-7AFECB33-ADE7-476B-8027-C7F0C35427A5-html.png",
+        type=str)
     args = parser.parse_args()
 
     tokenizer = load_tokenizer_from_path(args.tokenizerTargetPath)
@@ -48,20 +53,17 @@ if __name__ == "__main__":
     if led.ckpt_manager.latest_checkpoint:
         ckpt.restore(led.ckpt_manager.latest_checkpoint).expect_partial()
         print(led.ckpt_manager.latest_checkpoint, "is loaded")
+    else:
+        print("Checkpoint is not loaded")
 
-    # prepare input
-    file_url = (
-        "/media/radoxpi/Garage/project/AI_web_designer/datasets/pix2code/FEF248A4-868E-4A6C-94D6-9B38A67974F0.html",
-        "/media/radoxpi/Garage/project/AI_web_designer/datasets/pix2code/FEF248A4-868E-4A6C-94D6-9B38A67974F0.png",
-    )
-
-    file_url = (
-        "./datasets/parsed/datasets-raw-pix2code-7AFECB33-ADE7-476B-8027-C7F0C35427A5-html.html",
-        "./datasets/parsed/datasets-raw-pix2code-7AFECB33-ADE7-476B-8027-C7F0C35427A5-html.png",
-    )
+    # # prepare input
+    # file_url = (
+    #     "/media/radoxpi/Garage/project/AI_web_designer/datasets/pix2code/FEF248A4-868E-4A6C-94D6-9B38A67974F0.html",
+    #     "/media/radoxpi/Garage/project/AI_web_designer/datasets/pix2code/FEF248A4-868E-4A6C-94D6-9B38A67974F0.png",
+    # )
 
     # 2. read the image
-    img = tf.io.read_file(file_url[1])
+    img = tf.io.read_file(args.fileUrl)
     img = tf.image.decode_png(img, channels=3)
 
     img = tf.image.resize(img, (TARGET_SIZE, TARGET_SIZE))
@@ -84,7 +86,7 @@ if __name__ == "__main__":
     # TODO
     output_sequences = led.generate(
         input_ids=img,
-        max_length=50,
+        max_length=decoder_max_length,
         top_p=0.9,
         do_sample=False,
         num_return_sequences=1,

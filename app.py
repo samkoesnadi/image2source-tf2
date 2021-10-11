@@ -118,7 +118,6 @@ iface = gr.Interface(
     # title="Mockup AI",
     # description="It will write HTML code based on the reference image inputted. Built with love by ML6",
     # server_port=8080
-    enable_queue=True,
     live=True,
 
     interpretation="default",

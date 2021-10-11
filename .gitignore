@@ -1,4 +1,6 @@
 # all datasets, generated files
+pretrained_weights
+flagged
 checkpoints
 checkpoints*
 datasets

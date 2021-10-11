@@ -4,5 +4,6 @@ tensorflow-gpu
 scikit-image
 tqdm
 lxml
-datasets==1.2.1
+datasets
 rouge_score
+gradio

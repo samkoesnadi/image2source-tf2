@@ -2,7 +2,7 @@
 Transformer Seq2seq.
 Put 7x7x1280 as the encoder input, and output HTML+CSS text as the decoder output
 
-See html_SXN_parser/parser.py's comment to see more explaination related to parsing and more implementation strategy
+See html_SXN_parser/sxn_parser.py's comment to see more explaination related to parsing and more implementation strategy
 
 Author: Samuel Koesnadi 2019
 
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         return predicted_html
 
     iface = gr.Interface(
-        process_image, gr.inputs.Image(shape=(224, 224)), "text",
+        process_image, gr.inputs.Image(shape=(224, 224)), "html",
         title="Mockup AI",
         description="It will write HTML code based on the reference image inputted. Built with love by ML6",
         server_port=8080

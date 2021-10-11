@@ -2,7 +2,7 @@
 Transformer Seq2seq.
 Put 7x7x1280 as the encoder input, and output HTML+CSS text as the decoder output
 
-See html_SXN_parser/parser.py's comment to see more explaination related to parsing and more implementation strategy
+See html_SXN_parser/sxn_parser.py's comment to see more explaination related to parsing and more implementation strategy
 
 Author: Samuel Koesnadi 2019
 
@@ -19,10 +19,10 @@ from matplotlib import pyplot as plt
 
 from image2source.common_definitions import TFRECORD_FILENAME, TRANSFORMER_CHECKPOINT_PATH, \
     TOKENIZER_FILENAME, IS_TRAINING, ADDITIONAL_FILENAME, EPOCHS, TRANSFORMER_WEIGHT_PATH, \
-    IS_TEST_IMAGE, TARGET_FILENAME, MOBILENET_WEIGHT_PATH
+    IS_TEST_IMAGE, TARGET_FILENAME
 from image2source.dataset_helper import get_all_datasets, load_additional_info, \
     store_additional_info, load_image
-from image2source.html_SXN_parser.parser import decode_2_html
+from image2source.sxn_parser import decode_2_html
 from image2source.pipeline_helper import Pipeline
 
 

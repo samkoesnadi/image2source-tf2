@@ -4,10 +4,13 @@ checkpoints*
 datasets
 generated
 layers_figure
-model_weights
+old/model_weights
+old
 **/__pycache__
 logs
 export.png
+outputs
+wandb
 
 # all .json
 *.json

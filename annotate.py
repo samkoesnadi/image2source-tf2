@@ -17,13 +17,13 @@ if __name__ == "__main__":
     if not os.path.exists(parent_dir):
         os.mkdir(parent_dir)
 
-    ### ANNOTATE PIX2CODE'S DATASETS ###
-    dump_json_to_path(ANNOTATIONS_PATH, pairs_from_parent_path(ORIGINAL_DATASET_PATH))
+    # ### ANNOTATE PIX2CODE'S DATASETS ###
+    # dump_json_to_path(ANNOTATIONS_PATH, pairs_from_parent_path(ORIGINAL_DATASET_PATH))
 
     ### CONVERT THE DATASETS TO TFRECORD ###
     print("convert_and_write_all_datasets")
-    tokenizer, max_position = convert_and_write_all_datasets(ANNOTATIONS_PATH,
-                                                             TFRECORD_FILENAME)  # convert and write all datasets from the annotations path to TFRecord File
+    tokenizer, max_position = convert_and_write_all_datasets(
+        ANNOTATIONS_PATH, TFRECORD_FILENAME)  # convert and write all datasets from the annotations path to TFRecord File
 
     # store Tokenizer object to path
     print("store_tokenizer_to_path")

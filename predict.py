@@ -2,7 +2,7 @@
 Transformer Seq2seq.
 Put 7x7x1280 as the encoder input, and output HTML+CSS text as the decoder output
 
-See html_SXN_parser/parser.py's comment to see more explaination related to parsing and more implementation strategy
+See html_SXN_parser/sxn_parser.py's comment to see more explaination related to parsing and more implementation strategy
 
 Author: Samuel Koesnadi 2019
 

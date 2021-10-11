@@ -1,0 +1,4 @@
+*.png
+*.json
+
+node_modules

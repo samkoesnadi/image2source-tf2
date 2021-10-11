@@ -1,0 +1,1 @@
+https://jonathanmh.com/taking-full-page-screenshots-headless-chrome/
